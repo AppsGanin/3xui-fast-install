@@ -29,9 +29,8 @@ SSH_EXTRA=(${@+"${@}"})
 # Отпечаток сохраняется в ~/.ssh/known_hosts только для этого хоста.
 # При первом подключении принимается автоматически; при повторных — проверяется.
 _KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
-SSH_RUN_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=5 -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
-SCP_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=5 -o BatchMode=yes -P "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
+SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=5 -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
+SCP_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=5 -P "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/steps"
 
@@ -90,7 +89,7 @@ trap _cleanup INT TERM
 
 # Tail лога до маркера завершения или ошибки
 # Показываем только строки прогресса — [INFO]/[OK]/[WARN]/[ERROR] и заголовки шагов
-ssh -t "${SSH_RUN_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" \
+ssh -t "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" \
     "for i in \$(seq 1 60); do [ -f /root/3xui-install.log ] && break; sleep 1; done; \
      tail -n 0 -f /root/3xui-install.log | awk '/\[(INFO|OK|WARN|ERROR)\]|══|── |╔|╚/ { print; fflush() } /--- SETUP DONE ---|^\[ERROR\]/ { print; exit }'"
 

@@ -26,8 +26,8 @@ SSH_PORT="${SSH_PORT:-22}"
 SSH_USER="${SSH_USER:-root}"
 SSH_EXTRA=(${@+"${@}"})
 _KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -o BatchMode=yes -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
-SCP_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -o BatchMode=yes -P "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
+SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
+SCP_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -P "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"});
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 REMOTE_TMP="/tmp/3xui_restore_${TIMESTAMP}.tar.gz"
