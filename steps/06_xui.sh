@@ -110,8 +110,7 @@ XRAY_CONFIG=$(cat <<__JSON__
 __JSON__
 )
 
-REALITY_SETTINGS="\"show\":false,\"xver\":0,\"target\":\"127.0.0.1:9443\",\"serverNames\":[\"$DOMAIN\"],\"privateKey\":\"$REALITY_PRIVATE\",\"publicKey\":\"$REALITY_PUBLIC\",\"minClientVer\":\"\",\"maxClientVer\":\"\",\"maxTimediff\":0,\"shortIds\":$SIDS_JSON,\"settings\":{\"publicKey\":\"$REALITY_PUBLIC\",\"fingerprint\":\"chrome\",\"spiderX\":\"/\"}"
-INBOUND_STREAM="{\"network\":\"tcp\",\"security\":\"reality\",\"realitySettings\":{${REALITY_SETTINGS}},\"tcpSettings\":{\"acceptProxyProtocol\":false,\"header\":{\"type\":\"none\"}}}"
+VLESS_REALITY_KEYS_SETTINGS="\"show\":false,\"xver\":0,\"target\":\"127.0.0.1:9443\",\"serverNames\":[\"$DOMAIN\"],\"privateKey\":\"$REALITY_PRIVATE\",\"publicKey\":\"$REALITY_PUBLIC\",\"minClientVer\":\"\",\"maxClientVer\":\"\",\"maxTimediff\":0,\"shortIds\":$SIDS_JSON,\"settings\":{\"publicKey\":\"$REALITY_PUBLIC\",\"fingerprint\":\"randomized\",\"spiderX\":\"/\"}"
 
 ROUTING='happ://routing/onadd/eyJOYW1lIjoiUm9zY29tVlBOIiwiR2xvYmFsUHJveHkiOiJ0cnVlIiwiVXNlQ2h1bmtGaWxlcyI6InRydWUiLCJSZW1vdGVEbnMiOiI4LjguOC44IiwiRG9tZXN0aWNEbnMiOiI3Ny44OC44LjgiLCJSZW1vdGVETlNUeXBlIjoiRG9IIiwiUmVtb3RlRE5TRG9tYWluIjoiaHR0cHM6Ly84LjguOC44L2Rucy1xdWVyeSIsIlJlbW90ZUROU0lQIjoiOC44LjguOCIsIkRvbWVzdGljRE5TVHlwZSI6IkRvSCIsIkRvbWVzdGljRE5TRG9tYWluIjoiaHR0cHM6Ly83Ny44OC44LjgvZG5zLXF1ZXJ5IiwiRG9tZXN0aWNETlNJUCI6Ijc3Ljg4LjguOCIsIkdlb2lwdXJsIjoiaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL2h5ZHJhcG9uaXF1ZS9yb3Njb212cG4tZ2VvaXBAMjAyNjA0MjQwNTQyL3JlbGVhc2UvZ2VvaXAuZGF0IiwiR2Vvc2l0ZXVybCI6Imh0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9naC9oeWRyYXBvbmlxdWUvcm9zY29tdnBuLWdlb3NpdGVAMjAyNjA0MTUyMjM1L3JlbGVhc2UvZ2Vvc2l0ZS5kYXQiLCJMYXN0VXBkYXRlZCI6IjE3NzcwMDkzOTAiLCJEbnNIb3N0cyI6eyJsa2ZsMi5uYWxvZy5ydSI6IjIxMy4yNC42NC4xNzUiLCJsa25wZC5uYWxvZy5ydSI6IjIxMy4yNC42NC4xODEifSwiUm91dGVPcmRlciI6ImJsb2NrLXByb3h5LWRpcmVjdCIsIkRpcmVjdFNpdGVzIjpbImdlb3NpdGU6cHJpdmF0ZSIsImdlb3NpdGU6Y2F0ZWdvcnktcnUiLCJnZW9zaXRlOndoaXRlbGlzdCIsImdlb3NpdGU6bWljcm9zb2Z0IiwiZ2Vvc2l0ZTphcHBsZSIsImdlb3NpdGU6ZXBpY2dhbWVzIiwiZ2Vvc2l0ZTpyaW90IiwiZ2Vvc2l0ZTplc2NhcGVmcm9tdGFya292IiwiZ2Vvc2l0ZTpzdGVhbSIsImdlb3NpdGU6dHdpdGNoIiwiZ2Vvc2l0ZTpwaW50ZXJlc3QiLCJnZW9zaXRlOmZhY2VpdCJdLCJEaXJlY3RJcCI6WyJnZW9pcDpwcml2YXRlIiwiZ2VvaXA6ZGlyZWN0Il0sIlByb3h5U2l0ZXMiOlsiZ2Vvc2l0ZTpnb29nbGUtcGxheSIsImdlb3NpdGU6Z2l0aHViIiwiZ2Vvc2l0ZTp0d2l0Y2gtYWRzIiwiZ2Vvc2l0ZTp5b3V0dWJlIiwiZ2Vvc2l0ZTp0ZWxlZ3JhbSJdLCJQcm94eUlwIjpbXSwiQmxvY2tTaXRlcyI6WyJnZW9zaXRlOndpbi1zcHkiLCJnZW9zaXRlOnRvcnJlbnQiLCJnZW9zaXRlOmNhdGVnb3J5LWFkcyJdLCJCbG9ja0lwIjpbXSwiRG9tYWluU3RyYXRlZ3kiOiJJUElmTm9uTWF0Y2giLCJGYWtlRE5TIjoiZmFsc2UifQo='
 
@@ -140,22 +139,40 @@ xui_db_set subPath            "$SUB_PATH"
 xui_db_set subUpdates         "1"
 xui_db_set subRoutingRules    "$ROUTING"
 xui_db_set xrayTemplateConfig "$XRAY_CONFIG_1L"
-xui_db_set webCertFile        "/root/cert/ssl/fullchain.pem"
-xui_db_set webKeyFile         "/root/cert/ssl/privkey.pem"
-xui_db_set subCertFile        "/root/cert/ssl/fullchain.pem"
-xui_db_set subKeyFile         "/root/cert/ssl/privkey.pem"
+xui_db_set webCertFile        "${CERT_DIR}/fullchain.pem"
+xui_db_set webKeyFile         "${CERT_DIR}/privkey.pem"
+xui_db_set subCertFile        "${CERT_DIR}/fullchain.pem"
+xui_db_set subKeyFile         "${CERT_DIR}/privkey.pem"
 
-INBOUND_SETTINGS="{\"clients\":[],\"decryption\":\"none\",\"fallbacks\":[{\"dest\":9443,\"xver\":1}]}"
-INBOUND_SNIFFING='{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"metadataOnly":false,"routeOnly":false}'
-IS_SQL="${INBOUND_SETTINGS//\'/\'\'}"
-SS_SQL="${INBOUND_STREAM//\'/\'\'}"
-SN_SQL="${INBOUND_SNIFFING//\'/\'\'}"
+# ── VLESS Reality ────────────────────────────────────────────────────────────
+VLESS_REALITY_SETTINGS="{\"clients\":[],\"decryption\":\"none\",\"fallbacks\":[{\"dest\":9443,\"xver\":1}]}"
+VLESS_REALITY_STREAM="{\"network\":\"tcp\",\"security\":\"reality\",\"realitySettings\":{${VLESS_REALITY_KEYS_SETTINGS}},\"tcpSettings\":{\"acceptProxyProtocol\":false,\"header\":{\"type\":\"none\"}}}"
+VLESS_REALITY_SNIFFING='{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"metadataOnly":false,"routeOnly":false}'
+
+VLESS_REALITY_SE_SQL="${VLESS_REALITY_SETTINGS//\'/\'\'}"
+VLESS_REALITY_SS_SQL="${VLESS_REALITY_STREAM//\'/\'\'}"
+VLESS_REALITY_SN_SQL="${VLESS_REALITY_SNIFFING//\'/\'\'}"
 
 sqlite3 "$XUI_DB" \
     "DELETE FROM inbounds WHERE tag='inbound-443';
      INSERT INTO inbounds (user_id,up,down,total,remark,enable,expiry_time,listen,port,protocol,settings,stream_settings,tag,sniffing)
-     VALUES (1,0,0,0,'VLESS Reality',1,0,'',443,'vless','${IS_SQL}','${SS_SQL}','inbound-443','${SN_SQL}');" \
-    || die "Ошибка INSERT inbound в БД"
+     VALUES (1,0,0,0,'VLESS Reality',1,0,'',443,'vless','${VLESS_REALITY_SE_SQL}','${VLESS_REALITY_SS_SQL}','inbound-443','${VLESS_REALITY_SN_SQL}');" \
+    || die "Ошибка INSERT VLESS Reality inbound в БД"
+
+# ── Hysteria2 ─────────────────────────────────────────────────────────────────
+HYSTERIA2_SETTINGS='{"clients":[],"version":2}'
+HYSTERIA2_STREAM="{\"network\":\"hysteria\",\"security\":\"tls\",\"externalProxy\":[],\"tlsSettings\":{\"serverName\":\"$DOMAIN\",\"minVersion\":\"1.2\",\"maxVersion\":\"1.3\",\"cipherSuites\":\"\",\"rejectUnknownSni\":true,\"disableSystemRoot\":false,\"enableSessionResumption\":true,\"certificates\":[{\"certificateFile\":\"${CERT_DIR}/fullchain.pem\",\"keyFile\":\"${CERT_DIR}/privkey.pem\",\"oneTimeLoading\":false,\"usage\":\"encipherment\",\"buildChain\":false}],\"alpn\":[\"h3\"],\"echServerKeys\":\"\",\"settings\":{\"fingerprint\":\"randomized\",\"echConfigList\":\"\"}},\"hysteriaSettings\":{\"version\":2,\"auth\":\"\",\"udpIdleTimeout\":60,\"masquerade\":{\"type\":\"proxy\",\"dir\":\"\",\"url\":\"twitch.tv\",\"rewriteHost\":true,\"insecure\":false,\"content\":\"\",\"headers\":{},\"statusCode\":0}}}"
+HYSTERIA2_SNIFFING='{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"metadataOnly":false,"routeOnly":false}'
+
+HYSTERIA2_SE_SQL="${HYSTERIA2_SETTINGS//\'/\'\'}"
+HYSTERIA2_SS_SQL="${HYSTERIA2_STREAM//\'/\'\'}"
+HYSTERIA2_SN_SQL="${HYSTERIA2_SNIFFING//\'/\'\'}"
+
+sqlite3 "$XUI_DB" \
+    "DELETE FROM inbounds WHERE tag='inbound-${HY2_PORT}';
+     INSERT INTO inbounds (user_id,up,down,total,remark,enable,expiry_time,listen,port,protocol,settings,stream_settings,tag,sniffing)
+     VALUES (1,0,0,0,'Hy2',1,0,'',${HY2_PORT},'hysteria','${HYSTERIA2_SE_SQL}','${HYSTERIA2_SS_SQL}','inbound-${HY2_PORT}','${HYSTERIA2_SN_SQL}');" \
+    || die "Ошибка INSERT Hysteria2 inbound в БД"
 
 # ── Хэш пароля (до старта контейнера) ───────────────────────────────────────
 if ! command -v htpasswd &>/dev/null; then

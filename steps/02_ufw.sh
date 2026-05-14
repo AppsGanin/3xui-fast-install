@@ -10,8 +10,9 @@ if command -v ufw &>/dev/null || apt-get install -y ufw &>/dev/null; then
     for port in 22 80 443 "$PANEL_PORT" "$SUB_PORT"; do
         ufw allow "$port"
     done
+    ufw allow "${HY2_PORT}/udp"
     ufw --force enable
-    success "UFW включён. Открытые порты: 22 80 443 ${PANEL_PORT} ${SUB_PORT}."
+    success "UFW включён. Открытые порты: 22 80 443 ${PANEL_PORT} ${SUB_PORT} ${HY2_PORT}/udp."
 else
     warn "UFW не найден и не удалось установить — пропущено."
 fi

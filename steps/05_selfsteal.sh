@@ -4,7 +4,6 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 info "Шаг 5/7: Установка Caddy selfsteal (SSL генерирует Caddy)..."
 
 CADDY_CONTAINER="caddy-selfsteal"
-CERT_DIR="${XUI_DIR}/cert/ssl"
 mkdir -p "$CERT_DIR"
 
 CERT_INSIDE="/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN}/${DOMAIN}.crt"

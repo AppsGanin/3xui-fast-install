@@ -1,38 +1,39 @@
 # 3x-ui Personal VPN Setup
 
-Автоматизированная установка личного VPN-сервера. Разворачивает [3x-ui](https://github.com/MHSanaei/3x-ui) с VLESS Reality, Cloudflare WARP, Opera Proxy, Tor, selfsteal Caddy и автоматической настройкой всей маршрутизации.
+Автоматизированная установка личного VPN-сервера. Разворачивает [3x-ui](https://github.com/MHSanaei/3x-ui) с VLESS Reality, Hysteria2, Cloudflare WARP, Opera Proxy, Tor, selfsteal Caddy и автоматической настройкой всей маршрутизации.
 
 ## Что устанавливается
 
-| Компонент           | Описание                                                        |
-| ------------------- | --------------------------------------------------------------- |
-| **3x-ui**           | Панель управления Xray (Docker), VLESS + Reality inbound на 443 |
-| **VLESS + Reality** | Транспорт поверх TLS, маскируется под легитимный домен          |
-| **Caddy selfsteal** | TLS-терминатор на 443 → 9443, выдаёт Let's Encrypt сертификат   |
-| **Cloudflare WARP** | SOCKS5-прокси для RU-сайтов (геоблоки, реестр Роскомнадзора)    |
-| **Opera Proxy**     | SOCKS5-прокси для зарубежных сервисов (Disney+, Reddit и др.)   |
-| **Tor**             | SOCKS5-прокси для .onion и анонимного трафика                   |
-| **BBR**             | Алгоритм контроля перегрузки TCP — ускоряет соединение          |
-| **UFW**             | Фаервол: открыты 22/80/443 + порты панели и подписок            |
-| **fail2ban**        | Защита от перебора паролей                                      |
+| Компонент           | Описание                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| **3x-ui**           | Панель управления Xray (Docker), VLESS Reality на 443 + Hysteria2 на 63000                       |
+| **VLESS + Reality** | Транспорт поверх TLS, маскируется под легитимный домен                                           |
+| **Hysteria2**       | UDP-протокол поверх TLS, маскировка под Twitch, быстрее на потерях — особенно на мобильных сетях |
+| **Caddy selfsteal** | TLS-терминатор на 443 → 9443, выдаёт Let's Encrypt сертификат                                    |
+| **Cloudflare WARP** | SOCKS5-прокси для RU-сайтов (геоблоки, реестр Роскомнадзора)                                     |
+| **Opera Proxy**     | SOCKS5-прокси для зарубежных сервисов (Disney+, Reddit и др.)                                    |
+| **Tor**             | SOCKS5-прокси для .onion и анонимного трафика                                                    |
+| **BBR**             | Алгоритм контроля перегрузки TCP — ускоряет соединение                                           |
+| **UFW**             | Фаервол: открыты 22/80/443/UDP:63000 + порты панели и подписок                                   |
+| **fail2ban**        | Защита от перебора паролей                                                                       |
 
 ## Маршрутизация трафика (Xray)
 
-| Трафик                                    | Outbound      |
-| ----------------------------------------- | ------------- |
-| Реклама, вредоносные домены               | `blocked`     |
-| RU-домены (.ru, .su, .рф), IP из RU GeoIP | `warp` (WARP) |
-| .onion, check.torproject.org              | `tor`         |
-| Disney+, Reddit                           | `opera`       |
-| Всё остальное                             | `direct`      |
+| Трафик                                    | Outbound                                                       |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| Реклама, вредоносные домены               | `blocked`                                                      |
+| RU-домены (.ru, .su, .рф), IP из RU GeoIP | `warp` (WARP) — чтобы не светить IP сервера перед RU-ресурсами |
+| .onion, check.torproject.org              | `tor` — добавлены для примера, настройте под себя              |
+| Disney+, Reddit                           | `opera` — добавлены для примера, настройте под себя            |
+| Всё остальное                             | `direct`                                                       |
 
-GeoIP/GeoSite данные берутся из [roscomvpn](https://github.com/hydraPonique/roscomvpn-geoip).
+GeoIP/GeoSite для клиентов Happ подписки берутся из [roscomvpn-routing](https://github.com/hydraponique/roscomvpn-routing).
 
 ## Требования
 
 - VPS с Debian/Ubuntu, root-доступ по SSH
 - Домен с A-записью, направленной на IP сервера
-- Открытые порты: **80** (Let's Encrypt) и **443** (Reality)
+- Открытые порты: **80** (Let's Encrypt), **443** (Reality), **63000/UDP** (Hysteria2)
 
 ## Быстрый старт
 
@@ -135,6 +136,7 @@ bash restore.sh <IP> backups/backup_*.tar.gz -i ~/.ssh/id_rsa
 | `OPERA_COUNTRY`    | `EU`           | Регион Opera Proxy                  |
 | `TOR_PORT`         | `40002`        | SOCKS5-порт Tor (localhost)         |
 | `XRAY_API_PORT`    | `62789`        | Порт Xray API (localhost)           |
+| `HY2_PORT`         | `63000`        | Порт Hysteria2 (UDP)                |
 | `XUI_DIR`          | `/root`        | Директория данных 3x-ui на сервере  |
 | `SSH_PORT`         | `22`           | SSH-порт сервера                    |
 | `SSH_USER`         | `root`         | SSH-пользователь                    |
@@ -177,7 +179,9 @@ bash deploy.sh 1.2.3.4
 ## После установки
 
 - Войти в панель: `https://<DOMAIN>:<PANEL_PORT>/<PANEL_PATH>/`
-- В панели уже настроен VLESS Reality inbound на порту 443
+- В панели уже настроены два inbound'а:
+  - **VLESS Reality** — порт 443/TCP
+  - **Hysteria2** — порт 63000/UDP, маскировка под Twitch, TLS на сертификате домена
 - Подписки: `https://<DOMAIN>:<SUB_PORT>/subs/<UUID>`
 - Управление контейнером: `docker compose -f /root/docker-compose.yml [start|stop|restart|logs]`
 - Лог установки: `/root/3xui-install.log`

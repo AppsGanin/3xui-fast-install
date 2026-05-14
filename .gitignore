@@ -1,2 +1,3 @@
 backups/
 *.tar.gz
+.copilot-specs-cache/

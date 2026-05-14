@@ -34,10 +34,12 @@ die()     {
 
 [[ $EUID -ne 0 ]] && die "Запустите скрипт от root: sudo bash $0"
 
+export CERT_DIR="${CERT_DIR:-${XUI_DIR}/cert/ssl}"
 export WARP_PROXY_PORT="${WARP_PROXY_PORT:-40000}"
 export OPERA_PROXY_PORT="${OPERA_PROXY_PORT:-40001}"
 export TOR_PORT="${TOR_PORT:-40002}"
 export XRAY_API_PORT="${XRAY_API_PORT:-62789}"
+export HY2_PORT="${HY2_PORT:-63000}"
 export OPERA_COUNTRY="${OPERA_COUNTRY:-EU}"
 export XUI_DIR="${XUI_DIR:-/root}"
 export LOGFILE="${LOGFILE:-/root/3xui-install.log}"
