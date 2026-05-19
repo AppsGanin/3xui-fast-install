@@ -18,6 +18,7 @@ services:
     environment:
       XRAY_VMESS_AEAD_FORCED: "false"
       XUI_ENABLE_FAIL2BAN: "true"
+      TZ: "${TZ:-Europe/Moscow}"
     tty: true
     network_mode: host
     restart: unless-stopped
@@ -80,7 +81,7 @@ SIDS_JSON="[${SIDS_JSON%, }]"
 # ── Xray config ──────────────────────────────────────────────────────────────
 XRAY_CONFIG=$(cat <<__JSON__
 {
-  "log": {"access": "none", "dnsLog": false, "error": "./error.log", "loglevel": "warning"},
+  "log": {"access": "", "dnsLog": false, "error": "", "loglevel": "info"},
   "api": {"tag": "api", "services": ["HandlerService", "LoggerService", "StatsService"]},
   "inbounds": [{"tag": "api", "listen": "127.0.0.1", "port": $XRAY_API_PORT, "protocol": "dokodemo-door", "settings": {"address": "127.0.0.1"}}],
   "outbounds": [
@@ -104,13 +105,14 @@ XRAY_CONFIG=$(cat <<__JSON__
     ]
   },
   "stats": {},
+  "metrics": {"tag": "metrics"},
   "dns": {"hosts": {"dns.google": ["8.8.8.8", "8.8.4.4"]}, "servers": [], "queryStrategy": "UseIP", "tag": "dns_inbound"},
   "fakedns": null
 }
 __JSON__
 )
 
-VLESS_REALITY_KEYS_SETTINGS="\"show\":false,\"xver\":0,\"target\":\"127.0.0.1:9443\",\"serverNames\":[\"$DOMAIN\"],\"privateKey\":\"$REALITY_PRIVATE\",\"publicKey\":\"$REALITY_PUBLIC\",\"minClientVer\":\"\",\"maxClientVer\":\"\",\"maxTimediff\":0,\"shortIds\":$SIDS_JSON,\"settings\":{\"publicKey\":\"$REALITY_PUBLIC\",\"fingerprint\":\"randomized\",\"spiderX\":\"/\"}"
+VLESS_REALITY_KEYS_SETTINGS="\"show\":false,\"xver\":0,\"target\":\"127.0.0.1:9443\",\"serverNames\":[\"$DOMAIN\"],\"privateKey\":\"$REALITY_PRIVATE\",\"minClientVer\":\"\",\"maxClientVer\":\"\",\"maxTimediff\":0,\"shortIds\":$SIDS_JSON,\"mldsa65Seed\":\"\",\"settings\":{\"publicKey\":\"$REALITY_PUBLIC\",\"fingerprint\":\"chrome\",\"serverName\":\"\",\"spiderX\":\"/\",\"mldsa65Verify\":\"\"}"
 
 ROUTING='happ://routing/onadd/eyJOYW1lIjoiUm9zY29tVlBOIiwiR2xvYmFsUHJveHkiOiJ0cnVlIiwiVXNlQ2h1bmtGaWxlcyI6InRydWUiLCJSZW1vdGVEbnMiOiI4LjguOC44IiwiRG9tZXN0aWNEbnMiOiI3Ny44OC44LjgiLCJSZW1vdGVETlNUeXBlIjoiRG9IIiwiUmVtb3RlRE5TRG9tYWluIjoiaHR0cHM6Ly84LjguOC44L2Rucy1xdWVyeSIsIlJlbW90ZUROU0lQIjoiOC44LjguOCIsIkRvbWVzdGljRE5TVHlwZSI6IkRvSCIsIkRvbWVzdGljRE5TRG9tYWluIjoiaHR0cHM6Ly83Ny44OC44LjgvZG5zLXF1ZXJ5IiwiRG9tZXN0aWNETlNJUCI6Ijc3Ljg4LjguOCIsIkdlb2lwdXJsIjoiaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL2h5ZHJhcG9uaXF1ZS9yb3Njb212cG4tZ2VvaXBAMjAyNjA0MjQwNTQyL3JlbGVhc2UvZ2VvaXAuZGF0IiwiR2Vvc2l0ZXVybCI6Imh0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9naC9oeWRyYXBvbmlxdWUvcm9zY29tdnBuLWdlb3NpdGVAMjAyNjA0MTUyMjM1L3JlbGVhc2UvZ2Vvc2l0ZS5kYXQiLCJMYXN0VXBkYXRlZCI6IjE3NzcwMDkzOTAiLCJEbnNIb3N0cyI6eyJsa2ZsMi5uYWxvZy5ydSI6IjIxMy4yNC42NC4xNzUiLCJsa25wZC5uYWxvZy5ydSI6IjIxMy4yNC42NC4xODEifSwiUm91dGVPcmRlciI6ImJsb2NrLXByb3h5LWRpcmVjdCIsIkRpcmVjdFNpdGVzIjpbImdlb3NpdGU6cHJpdmF0ZSIsImdlb3NpdGU6Y2F0ZWdvcnktcnUiLCJnZW9zaXRlOndoaXRlbGlzdCIsImdlb3NpdGU6bWljcm9zb2Z0IiwiZ2Vvc2l0ZTphcHBsZSIsImdlb3NpdGU6ZXBpY2dhbWVzIiwiZ2Vvc2l0ZTpyaW90IiwiZ2Vvc2l0ZTplc2NhcGVmcm9tdGFya292IiwiZ2Vvc2l0ZTpzdGVhbSIsImdlb3NpdGU6dHdpdGNoIiwiZ2Vvc2l0ZTpwaW50ZXJlc3QiLCJnZW9zaXRlOmZhY2VpdCJdLCJEaXJlY3RJcCI6WyJnZW9pcDpwcml2YXRlIiwiZ2VvaXA6ZGlyZWN0Il0sIlByb3h5U2l0ZXMiOlsiZ2Vvc2l0ZTpnb29nbGUtcGxheSIsImdlb3NpdGU6Z2l0aHViIiwiZ2Vvc2l0ZTp0d2l0Y2gtYWRzIiwiZ2Vvc2l0ZTp5b3V0dWJlIiwiZ2Vvc2l0ZTp0ZWxlZ3JhbSJdLCJQcm94eUlwIjpbXSwiQmxvY2tTaXRlcyI6WyJnZW9zaXRlOndpbi1zcHkiLCJnZW9zaXRlOnRvcnJlbnQiLCJnZW9zaXRlOmNhdGVnb3J5LWFkcyJdLCJCbG9ja0lwIjpbXSwiRG9tYWluU3RyYXRlZ3kiOiJJUElmTm9uTWF0Y2giLCJGYWtlRE5TIjoiZmFsc2UifQo='
 
@@ -146,7 +148,7 @@ xui_db_set subKeyFile         "${CERT_DIR}/privkey.pem"
 
 # ── VLESS Reality ────────────────────────────────────────────────────────────
 VLESS_REALITY_SETTINGS="{\"clients\":[],\"decryption\":\"none\",\"fallbacks\":[{\"dest\":9443,\"xver\":1}]}"
-VLESS_REALITY_STREAM="{\"network\":\"tcp\",\"security\":\"reality\",\"realitySettings\":{${VLESS_REALITY_KEYS_SETTINGS}},\"tcpSettings\":{\"acceptProxyProtocol\":false,\"header\":{\"type\":\"none\"}}}"
+VLESS_REALITY_STREAM="{\"network\":\"xhttp\",\"security\":\"reality\",\"externalProxy\":[],\"realitySettings\":{${VLESS_REALITY_KEYS_SETTINGS}},\"xhttpSettings\":{\"path\":\"/\",\"host\":\"\",\"mode\":\"auto\",\"xPaddingBytes\":\"100-1000\",\"xPaddingObfsMode\":false,\"xPaddingKey\":\"\",\"xPaddingHeader\":\"\",\"xPaddingPlacement\":\"\",\"xPaddingMethod\":\"\",\"sessionPlacement\":\"\",\"sessionKey\":\"\",\"seqPlacement\":\"\",\"seqKey\":\"\",\"uplinkDataPlacement\":\"\",\"uplinkDataKey\":\"\",\"scMaxEachPostBytes\":\"1000000\",\"noSSEHeader\":false,\"scMaxBufferedPosts\":30,\"scStreamUpServerSecs\":\"20-80\",\"serverMaxHeaderBytes\":0,\"headers\":{}}}"
 VLESS_REALITY_SNIFFING='{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"metadataOnly":false,"routeOnly":false}'
 
 VLESS_REALITY_SE_SQL="${VLESS_REALITY_SETTINGS//\'/\'\'}"
@@ -154,9 +156,9 @@ VLESS_REALITY_SS_SQL="${VLESS_REALITY_STREAM//\'/\'\'}"
 VLESS_REALITY_SN_SQL="${VLESS_REALITY_SNIFFING//\'/\'\'}"
 
 sqlite3 "$XUI_DB" \
-    "DELETE FROM inbounds WHERE tag='inbound-443';
+    "DELETE FROM inbounds WHERE tag='inbound-${VLESS_PORT}';
      INSERT INTO inbounds (user_id,up,down,total,remark,enable,expiry_time,listen,port,protocol,settings,stream_settings,tag,sniffing)
-     VALUES (1,0,0,0,'VLESS Reality',1,0,'',443,'vless','${VLESS_REALITY_SE_SQL}','${VLESS_REALITY_SS_SQL}','inbound-443','${VLESS_REALITY_SN_SQL}');" \
+     VALUES (1,0,0,0,'VLESS Reality',1,0,'',${VLESS_PORT},'vless','${VLESS_REALITY_SE_SQL}','${VLESS_REALITY_SS_SQL}','inbound-${VLESS_PORT}','${VLESS_REALITY_SN_SQL}');" \
     || die "Ошибка INSERT VLESS Reality inbound в БД"
 
 # ── Hysteria2 ─────────────────────────────────────────────────────────────────

@@ -12,10 +12,10 @@ mkdir -p "$(dirname "$LOGFILE")"
 exec 3>&1 >>"$LOGFILE" 2>&1
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ══════ Начало установки ══════"
 
+trap 'echo "[$(date +%T)] ABORT" >> "$LOGFILE"; echo -e "\033[0;31m[ERROR]\033[0m Установка прервана. Подробности: $LOGFILE" >&3; exit 1' ERR
+
 # shellcheck source=steps/_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
-
-trap 'echo "[$(date +%T)] ABORT" >> "$LOGFILE"; die "Установка прервана. Подробности: $LOGFILE"' ERR
 
 # ─── Проверки ─────────────────────────────────────────────────────────────────
 command -v curl &>/dev/null || die "curl не найден."
