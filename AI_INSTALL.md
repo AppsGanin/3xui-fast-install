@@ -31,6 +31,8 @@ ssh-keygen -R <IP>
 - Не печатай пароль панели в публичный чат или лог, если пользователь не просит.
 - Не запускай `git reset --hard`, `rm -rf`, очистку сервера или переустановку ОС без явного подтверждения.
 - Если установка уже частично прошла, сначала прочитай логи и состояние контейнеров, а не запускай всё заново вслепую.
+- Перед действиями, которые могут изменить или заменить рабочие данные 3x-ui, предложи сделать бекап через `backup.sh`.
+- Не запускай `restore.sh` без явного подтверждения пользователя: восстановление заменяет текущую БД, сертификаты, compose-файлы и данные Caddy.
 
 ## Проверки перед запуском
 
@@ -243,6 +245,114 @@ ssh root@<IP> 'docker compose -f /root/docker-compose.yml logs --tail 120'
 ```bash
 ssh root@<IP> 'ls -la /root/db /root/db/x-ui.db'
 ```
+
+## Backup и restore
+
+Используй `backup.sh` и `restore.sh` как локальные команды из корня репозитория. Они подключаются к серверу по SSH, поэтому поддерживают те же параметры доступа: `SSH_USER`, `SSH_PORT` и дополнительные SSH-аргументы после IP, например `-i ~/.ssh/id_rsa`.
+
+### Когда делать backup
+
+Предлагай или выполняй backup перед:
+
+- повторным запуском установки на уже настроенном сервере
+- ручным исправлением `/root/docker-compose.yml`, `/root/db/`, `/root/cert/` или `/opt/caddy/`
+- восстановлением из старого архива
+- обновлением скриптов, если есть риск затронуть текущую конфигурацию
+
+Команды:
+
+```bash
+bash backup.sh <IP>
+bash backup.sh <IP> -i ~/.ssh/id_rsa
+SSH_PORT=2222 bash backup.sh <IP>
+BACKUP_DIR=~/backups bash backup.sh <IP>
+```
+
+Что делает `backup.sh`:
+
+- временно останавливает compose-файл 3x-ui, чтобы БД не менялась во время копирования
+- собирает архив на сервере
+- скачивает архив локально в `backups/` или в `BACKUP_DIR`
+- удаляет временный архив из `/tmp` на сервере
+
+Архив должен содержать:
+
+- `db/` — база 3x-ui
+- `cert/` — сертификаты
+- `docker-compose.yml` — compose 3x-ui
+- `caddy/` — selfsteal Caddy без логов
+- `3xui-credentials.txt` — файл доступов, если он есть
+
+После backup сообщи пользователю путь к архиву и размер файла. Если команда упала, проверь SSH-доступ, наличие Docker/compose и свободное место:
+
+```bash
+ssh root@<IP> 'df -h / /tmp; docker ps -a; ls -la /root /opt/caddy 2>/dev/null'
+```
+
+### Когда делать restore
+
+Используй `restore.sh`, когда пользователь явно хочет перенести или откатить состояние 3x-ui из существующего локального архива.
+
+Перед restore обязательно:
+
+1. Проверь, что архив существует локально:
+
+```bash
+ls -lh <backup.tar.gz>
+```
+
+2. Уточни у пользователя, что текущие данные на сервере можно заменить.
+3. Если на сервере есть ценная текущая конфигурация, сначала сделай свежий backup.
+
+Команды:
+
+```bash
+bash restore.sh <IP> backups/backup_<IP>_<YYYYMMDD_HHMMSS>.tar.gz
+bash restore.sh <IP> backups/backup_<IP>_<YYYYMMDD_HHMMSS>.tar.gz -i ~/.ssh/id_rsa
+SSH_PORT=2222 bash restore.sh <IP> backups/backup_<IP>_<YYYYMMDD_HHMMSS>.tar.gz
+```
+
+`restore.sh` сам запросит подтверждение:
+
+```text
+Продолжить? [y/N]
+```
+
+Если работаешь как агент и команда ждёт этот ввод, не отвечай `y` автоматически без подтверждения пользователя.
+
+Что делает `restore.sh`:
+
+- загружает архив в `/tmp` на сервер
+- останавливает 3x-ui и `caddy-selfsteal`
+- восстанавливает `/root/db`, `/root/cert`, `/root/docker-compose.yml`, `/opt/caddy` и `/root/3xui-credentials.txt`
+- выставляет безопасные права на приватные ключи и файл доступов
+- запускает контейнеры обратно
+- удаляет временный архив с сервера
+
+### Проверки после restore
+
+Проверь контейнеры:
+
+```bash
+ssh root@<IP> 'docker ps -a'
+ssh root@<IP> 'docker compose -f /root/docker-compose.yml ps'
+ssh root@<IP> 'docker compose -f /opt/caddy/docker-compose.yml ps 2>/dev/null || docker ps --filter name=caddy-selfsteal'
+```
+
+Проверь, что файл доступов и БД на месте:
+
+```bash
+ssh root@<IP> 'ls -lh /root/3xui-credentials.txt /root/db/x-ui.db'
+```
+
+Проверь логи при ошибках:
+
+```bash
+ssh root@<IP> 'docker compose -f /root/docker-compose.yml logs --tail 120'
+ssh root@<IP> 'docker logs --tail 120 caddy-selfsteal'
+```
+
+Если restore переносится на сервер с другим доменом, IP или портами, не считай это обычным восстановлением. Сначала объясни пользователю, что в архиве лежат старые сертификаты, Caddy-конфигурация, compose-файлы и URL панели; может потребоваться новая установка или ручная правка конфигов.
 
 ## Продолжение после частичного успеха
 
