@@ -10,24 +10,18 @@
 # =============================================================================
 set -euo pipefail
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
-info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
-success() { echo -e "${GREEN}[OK]${NC}    $*"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-die()     { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/local_lib.sh
+source "$SCRIPT_ROOT/scripts/local_lib.sh"
 
 SERVER_IP="${1:-}"
 [[ -z "$SERVER_IP" ]] && die "Укажите IP: bash backup.sh <IP>"
 shift
 
-SSH_PORT="${SSH_PORT:-22}"
-SSH_USER="${SSH_USER:-root}"
-SSH_EXTRA=(${@+"${@}"})
-_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
-SCP_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -P "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"});
+SSH_EXTRA=("$@")
+init_ssh_options
 
-BACKUP_DIR="${BACKUP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backups}"
+BACKUP_DIR="${BACKUP_DIR:-${SCRIPT_ROOT}/backups}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="backup_${SERVER_IP}_${TIMESTAMP}.tar.gz"
 REMOTE_TMP="/tmp/3xui_backup_${TIMESTAMP}.tar.gz"
@@ -79,7 +73,7 @@ info "Скачиваю архив..."
 scp "${SCP_OPTS[@]}" "${SSH_USER}@${SERVER_IP}:${REMOTE_TMP}" "${BACKUP_DIR}/${BACKUP_NAME}"
 
 info "Удаляю временный файл на сервере..."
-ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" "rm -f ${REMOTE_TMP}"
+ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" "rm -f $(shell_quote "$REMOTE_TMP")"
 
 echo
 success "Бекап сохранён: ${BACKUP_DIR}/${BACKUP_NAME}"

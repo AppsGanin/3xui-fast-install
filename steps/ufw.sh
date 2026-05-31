@@ -1,9 +1,9 @@
 # shellcheck source=steps/_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
-info "Шаг 2/7: Настройка UFW..."
+info "Настройка UFW..."
 
-if command -v ufw &>/dev/null || apt-get install -y ufw &>/dev/null; then
+if command_exists ufw || install_packages ufw &>/dev/null; then
     ufw --force reset
     ufw default deny incoming
     ufw default allow outgoing

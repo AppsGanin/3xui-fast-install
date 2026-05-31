@@ -1,13 +1,34 @@
 # shellcheck source=steps/_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
-info "Шаг 3a: Установка WARP..."
+info "Установка WARP..."
+
+get_debian_codename() {
+    if command -v lsb_release &>/dev/null; then
+        lsb_release -cs
+    elif [[ -r /etc/os-release ]]; then
+        . /etc/os-release
+        printf '%s' "${VERSION_CODENAME:-}"
+    fi
+}
 
 install_warp_deb() {
+    apt-get update -qq
+    apt-get install -y --no-install-recommends lsb-release ca-certificates apt-transport-https
+
+    local codename
+    codename=$(get_debian_codename)
+    if [[ -z "$codename" ]]; then
+        die "Не удалось определить кодовое имя Debian/Ubuntu для установки WARP."
+    fi
+
     curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
-        | gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" \
+        | gpg --batch --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+    chmod 644 /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $codename main" \
         > /etc/apt/sources.list.d/cloudflare-client.list
+
     apt-get update -qq
     apt-get install -y cloudflare-warp
 }
@@ -24,6 +45,11 @@ elif command -v yum &>/dev/null; then
     install_warp_rpm
 else
     die "Не удалось установить WARP: пакетный менеджер не найден (нужен apt или yum)."
+fi
+
+if ! command -v warp-cli &>/dev/null; then
+    warn "warp-cli не найден: WARP не установлен. Пропускаем настройку WARP."
+    exit 0
 fi
 
 systemctl enable --now warp-svc

@@ -1,10 +1,14 @@
 # shellcheck source=steps/_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
-info "Шаг 3b: Установка opera-proxy (Opera VPN / SurfEasy)..."
+info "Установка opera-proxy (Opera VPN / SurfEasy)..."
 
 OPERA_BIN="/usr/local/bin/opera-proxy"
 OPERA_SERVICE="/etc/systemd/system/opera-proxy.service"
+
+if ! command_exists python3; then
+    die "Python3 не найден. Установите prereqs или добавьте python3 вручную."
+fi
 
 # ── Скачать последнюю версию ─────────────────────────────────────────────────
 info "Определяю последнюю версию opera-proxy..."
@@ -98,11 +102,11 @@ fi  # end version check
 # ── Проверка ─────────────────────────────────────────────────────────────────
 info "Жду запуска opera-proxy (до 30 с)..."
 for i in $(seq 1 30); do
-    ss -tlnp 2>/dev/null | grep -q ":${OPERA_PROXY_PORT}" && break
+    port_listening "$OPERA_PROXY_PORT" && break
     sleep 1
 done
 
-if ss -tlnp 2>/dev/null | grep -q ":${OPERA_PROXY_PORT}"; then
+if port_listening "$OPERA_PROXY_PORT"; then
     success "opera-proxy запущен. SOCKS5: 127.0.0.1:${OPERA_PROXY_PORT} (регион: ${OPERA_COUNTRY})"
 else
     warn "opera-proxy не слушает порт ${OPERA_PROXY_PORT}. Проверьте: systemctl status opera-proxy"

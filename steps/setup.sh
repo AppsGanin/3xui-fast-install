@@ -4,38 +4,45 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ─── Лог ─────────────────────────────────────────────────────────────────────
-# Весь stdout/stderr команд уходит в лог-файл.
-# info/success/warn/die пишут на терминал через fd 3.
+# Весь stdout/stderr команд уходит в full log-файл.
+# info/success/warn/die пишут только в filtered log-файл.
 LOGFILE=/root/3xui-install.log
-export LOGFILE
+FULL_LOGFILE=/root/3xui-install-full.log
+export LOGFILE FULL_LOGFILE
 mkdir -p "$(dirname "$LOGFILE")"
-exec 3>&1 >>"$LOGFILE" 2>&1
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] ══════ Начало установки ══════"
-
-trap 'echo "[$(date +%T)] ABORT" >> "$LOGFILE"; echo -e "\033[0;31m[ERROR]\033[0m Установка прервана. Подробности: $LOGFILE" >&3; exit 1' ERR
+mkdir -p "$(dirname "$FULL_LOGFILE")"
+exec 3>&1 >>"$FULL_LOGFILE" 2>&1
+printf "%s\n" "[$(date '+%Y-%m-%d %H:%M:%S')] ══════ Начало установки ══════" >>"$FULL_LOGFILE"
+printf "%s\n" "[INFO]  Setup стартовал. Полный лог: $FULL_LOGFILE" >>"$LOGFILE"
+printf "%s\n" "[INFO]  Setup стартовал. Полный лог: $FULL_LOGFILE" >&3
 
 # shellcheck source=steps/_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
 
-# ─── Проверки ─────────────────────────────────────────────────────────────────
-command -v curl &>/dev/null || die "curl не найден."
+info "Полный лог установки: $FULL_LOGFILE"
+trap 'printf "[$(date +%T)] ABORT\n" >> "$FULL_LOGFILE"; printf "[ERROR] Установка прервана. Подробности: %s\n" "$FULL_LOGFILE" >> "$LOGFILE"; printf "[ERROR] Установка прервана. Подробности: %s\n" "$FULL_LOGFILE" >&3; exit 1' ERR
 
 # ─── Запуск шагов как подпроцессов ───────────────────────────────────────────
 _run_step() {
     local label="$1" script="$2"
-    echo
-    echo "[$(date '+%H:%M:%S')] ── $label"
+    local line
+    line="[$(date '+%H:%M:%S')] ── $label"
+    printf "\n%s\n" "$line"
+    printf "\n%s\n" "$line" >>"$LOGFILE"
+    printf "\n%s\n" "$line" >&3
     bash "$script"
 }
 
-_run_step "BBR"         "$SCRIPT_DIR/01_bbr.sh"
-_run_step "UFW"         "$SCRIPT_DIR/02_ufw.sh"
-_run_step "WARP"        "$SCRIPT_DIR/03a_warp.sh"
-_run_step "Opera Proxy" "$SCRIPT_DIR/03b_opera_proxy.sh"
-_run_step "Tor"         "$SCRIPT_DIR/03c_tor.sh"
-_run_step "Docker"      "$SCRIPT_DIR/04_docker.sh"
-_run_step "Selfsteal"   "$SCRIPT_DIR/05_selfsteal.sh"
-_run_step "3x-ui"       "$SCRIPT_DIR/06_xui.sh"
+_run_step "Prereqs"     "$SCRIPT_DIR/prereqs.sh"
+_run_step "BBR"         "$SCRIPT_DIR/bbr.sh"
+_run_step "UFW"         "$SCRIPT_DIR/ufw.sh"
+_run_step "WARP"        "$SCRIPT_DIR/warp.sh"
+_run_step "Opera Proxy" "$SCRIPT_DIR/opera-proxy.sh"
+_run_step "Tor"         "$SCRIPT_DIR/tor.sh"
+_run_step "Docker"      "$SCRIPT_DIR/docker.sh"
+_run_step "fail2ban"    "$SCRIPT_DIR/fail2ban.sh"
+_run_step "Selfsteal"   "$SCRIPT_DIR/selfsteal.sh"
+_run_step "3x-ui"       "$SCRIPT_DIR/xui.sh"
 
 # ─── Сохраняем доступы ────────────────────────────────────────────────────────
 cat > /root/3xui-credentials.txt <<CREDS
@@ -54,3 +61,5 @@ CREDS
 chmod 600 /root/3xui-credentials.txt
 
 echo "--- SETUP DONE ---"
+printf "%s\n" "--- SETUP DONE ---" >>"$LOGFILE"
+printf "%s\n" "--- SETUP DONE ---" >&3

@@ -10,29 +10,21 @@
 # =============================================================================
 set -euo pipefail
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
-info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
-success() { echo -e "${GREEN}[OK]${NC}    $*"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-die()     { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/local_lib.sh
+source "$SCRIPT_ROOT/scripts/local_lib.sh"
 
 # ─── Аргументы ────────────────────────────────────────────────────────────────
 SERVER_IP="${1:-}"
 [[ -z "$SERVER_IP" ]] && die "Укажите IP сервера: bash deploy.sh <IP>"
 shift
 
-SSH_PORT="${SSH_PORT:-22}"
-SSH_USER="${SSH_USER:-root}"
 REMOTE_DIR="${REMOTE_DIR:-/root/3xui-setup}"
-SSH_EXTRA=(${@+"${@}"})
+SSH_EXTRA=("$@")
+SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-5}"
+init_ssh_options
 
-# Отпечаток сохраняется в ~/.ssh/known_hosts только для этого хоста.
-# При первом подключении принимается автоматически; при повторных — проверяется.
-_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=5 -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
-SCP_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=5 -P "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/steps"
+STEPS_DIR="$SCRIPT_ROOT/steps"
 
 # ─── Домен ────────────────────────────────────────────────────────────────────
 if [[ -z "${DOMAIN:-}" ]]; then
@@ -44,7 +36,10 @@ fi
 info "Ожидаю SSH ${SSH_USER}@${SERVER_IP}:${SSH_PORT}..."
 WAIT_MAX=300; WAIT_STEP=5; elapsed=0
 while true; do
-    ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" 'exit 0' 2>/dev/null && break
+    ssh_error=$(ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" 'exit 0' 2>&1) && break
+    if grep -q "REMOTE HOST IDENTIFICATION HAS CHANGED" <<<"$ssh_error"; then
+        die "SSH host key для ${SERVER_IP} изменился. Если сервер переустановлен и это ожидаемо, удалите старый ключ: ssh-keygen -R ${SERVER_IP}"
+    fi
     (( elapsed >= WAIT_MAX )) && die "SSH недоступен после ${WAIT_MAX}с."
     warn "Нет соединения, повтор через ${WAIT_STEP}с... (${elapsed}/${WAIT_MAX}с)"
     sleep "$WAIT_STEP"
@@ -55,50 +50,32 @@ success "SSH доступен."
 # ─── Копирование ──────────────────────────────────────────────────────────────
 echo
 info "Копирую файлы → ${REMOTE_DIR}/..."
-ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" "mkdir -p ${REMOTE_DIR}"
-scp "${SCP_OPTS[@]}" "$SCRIPT_DIR"/*.sh "${SSH_USER}@${SERVER_IP}:${REMOTE_DIR}/"
+remote_dir_q=$(shell_quote "$REMOTE_DIR")
+ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" "mkdir -p ${remote_dir_q}"
+scp "${SCP_OPTS[@]}" "$STEPS_DIR"/*.sh "${SSH_USER}@${SERVER_IP}:${remote_dir_q}/"
 success "Файлы скопированы."
 
 # ─── Запуск ───────────────────────────────────────────────────────────────────
 echo
-info "Запускаю setup.sh в screen-сессии на сервере (домен: ${DOMAIN})..."
+info "Запускаю setup.sh на сервере (домен: ${DOMAIN})..."
 echo
 
-# Устанавливаем screen если нет, запускаем setup в фоне
-ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" bash <<REMOTE
-command -v screen &>/dev/null || apt-get install -y -qq screen
-find ${REMOTE_DIR} -name '*.sh' -exec chmod +x {} +
-# Завершить предыдущую сессию если есть
-screen -S 3xui-setup -X quit 2>/dev/null || true
-# Запустить setup в detached screen
-screen -dmS 3xui-setup bash -c "DOMAIN='${DOMAIN}' bash ${REMOTE_DIR}/setup.sh; echo \"--- Exit: \$?\" >> /root/3xui-install.log"
-REMOTE
-
-info "Setup запущен. Слежу за логом /root/3xui-install.log (Ctrl+C — остановить установку)..."
+info "Прогресс ниже, подробный лог: /root/3xui-install-full.log (Ctrl+C — остановить установку)..."
 echo
 
-# При Ctrl+C убиваем screen-сессию на сервере
-_cleanup() {
+if ssh -t "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" \
+    "find ${remote_dir_q} -name '*.sh' -exec chmod +x {} +; \
+     rm -f /root/3xui-install.log /root/3xui-install-full.log; \
+     touch /root/3xui-install.log; \
+     DOMAIN=$(shell_quote "$DOMAIN") bash ${remote_dir_q}/setup.sh"; then
     echo
-    warn "Прерывание — останавливаю setup на сервере..."
-    ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" \
-        "screen -S 3xui-setup -X quit 2>/dev/null; pkill -f '${REMOTE_DIR}/setup.sh' 2>/dev/null || true"
-    exit 1
-}
-trap _cleanup INT TERM
+    success "Деплой завершён."
 
-# Tail лога до маркера завершения или ошибки
-# Показываем только строки прогресса — [INFO]/[OK]/[WARN]/[ERROR] и заголовки шагов
-ssh -t "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" \
-    "for i in \$(seq 1 60); do [ -f /root/3xui-install.log ] && break; sleep 1; done; \
-     tail -n 0 -f /root/3xui-install.log | awk '/\[(INFO|OK|WARN|ERROR)\]|══|── |╔|╚/ { print; fflush() } /--- SETUP DONE ---|^\[ERROR\]/ { print; exit }'"
-
-trap - INT TERM
-
-echo
-success "Деплой завершён."
-
-# ─── Итог ─────────────────────────────────────────────────────────────────────
-echo
-info "Доступы:"
-ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" "cat /root/3xui-credentials.txt 2>/dev/null || echo '(файл доступов не найден)'"
+    # ─── Итог ─────────────────────────────────────────────────────────────────────
+    echo
+    info "Доступы:"
+    ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" "cat /root/3xui-credentials.txt 2>/dev/null || echo '(файл доступов не найден)'"
+else
+    echo
+    die "Деплой не завершён. Проверьте лог на сервере: /root/3xui-install-full.log"
+fi

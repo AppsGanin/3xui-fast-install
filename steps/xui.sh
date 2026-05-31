@@ -1,7 +1,7 @@
 # shellcheck source=steps/_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
-info "Шаг 6/7: Запуск 3x-ui (Docker)..."
+info "Запуск 3x-ui (Docker)..."
 
 mkdir -p "${XUI_DIR}/db" "${XUI_DIR}/cert"
 
@@ -64,10 +64,8 @@ info "Reality public:  $REALITY_PUBLIC"
 docker compose -f "${XUI_DIR}/docker-compose.yml" stop
 
 # ── sqlite3 ──────────────────────────────────────────────────────────────────
-if ! command -v sqlite3 &>/dev/null; then
-    info "Устанавливаю sqlite3..."
-    apt-get update -qq && apt-get install -y -qq sqlite3
-    command -v sqlite3 &>/dev/null || die "sqlite3 не удалось установить."
+if ! command_exists sqlite3; then
+    die "sqlite3 не найден. Установите prereqs или добавьте sqlite3 вручную."
 fi
 
 # ShortIds
@@ -121,7 +119,8 @@ XRAY_CONFIG_1L=$(printf '%s' "$XRAY_CONFIG" | tr -d '\n')
 # ── Запись настроек в БД ─────────────────────────────────────────────────────
 xui_db_set() {
     local key="$1"
-    local val="${2//\'/\'\'}"
+    local val
+    val=$(sql_escape "$2")
     sqlite3 "$XUI_DB" \
         "DELETE FROM settings WHERE key='${key}'; INSERT INTO settings(key,value) VALUES('${key}','${val}');" \
         || die "Ошибка записи '$key' в БД"
@@ -148,7 +147,7 @@ xui_db_set subKeyFile         "${CERT_DIR}/privkey.pem"
 
 # ── VLESS Reality ────────────────────────────────────────────────────────────
 VLESS_REALITY_SETTINGS="{\"clients\":[],\"decryption\":\"none\",\"fallbacks\":[{\"dest\":9443,\"xver\":1}]}"
-VLESS_REALITY_STREAM="{\"network\":\"xhttp\",\"security\":\"reality\",\"externalProxy\":[],\"realitySettings\":{${VLESS_REALITY_KEYS_SETTINGS}},\"xhttpSettings\":{\"path\":\"/\",\"host\":\"\",\"mode\":\"auto\",\"xPaddingBytes\":\"100-1000\",\"xPaddingObfsMode\":false,\"xPaddingKey\":\"\",\"xPaddingHeader\":\"\",\"xPaddingPlacement\":\"\",\"xPaddingMethod\":\"\",\"sessionPlacement\":\"\",\"sessionKey\":\"\",\"seqPlacement\":\"\",\"seqKey\":\"\",\"uplinkDataPlacement\":\"\",\"uplinkDataKey\":\"\",\"scMaxEachPostBytes\":\"1000000\",\"noSSEHeader\":false,\"scMaxBufferedPosts\":30,\"scStreamUpServerSecs\":\"20-80\",\"serverMaxHeaderBytes\":0,\"headers\":{}}}"
+VLESS_REALITY_STREAM="{\"network\":\"tcp\",\"security\":\"reality\",\"externalProxy\":[],\"realitySettings\":{${VLESS_REALITY_KEYS_SETTINGS}},\"tcpSettings\":{\"acceptProxyProtocol\":false,\"header\":{\"type\":\"none\"}}}"
 VLESS_REALITY_SNIFFING='{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"metadataOnly":false,"routeOnly":false}'
 
 VLESS_REALITY_SE_SQL="${VLESS_REALITY_SETTINGS//\'/\'\'}"
@@ -177,9 +176,8 @@ sqlite3 "$XUI_DB" \
     || die "Ошибка INSERT Hysteria2 inbound в БД"
 
 # ── Хэш пароля (до старта контейнера) ───────────────────────────────────────
-if ! command -v htpasswd &>/dev/null; then
-    apt-get update -qq && apt-get install -y -qq apache2-utils
-    command -v htpasswd &>/dev/null || die "htpasswd не удалось установить."
+if ! command_exists htpasswd; then
+    die "htpasswd не найден. Установите prereqs или добавьте apache2-utils вручную."
 fi
 PANEL_PASS_HASH=$(htpasswd -bnBC 10 "" "$PANEL_PASS" | tr -d ':\n') \
     || die "Не удалось сгенерировать bcrypt-хэш пароля."
@@ -187,9 +185,10 @@ PANEL_PASS_HASH=$(htpasswd -bnBC 10 "" "$PANEL_PASS" | tr -d ':\n') \
 
 # Ждём появления таблицы users в БД (контейнер ещё остановлен)
 # Таблица уже должна быть — она создаётся при первом старте выше
-PANEL_PASS_HASH_SQL="${PANEL_PASS_HASH//\'/\'\'}"
+PANEL_USER_SQL=$(sql_escape "$PANEL_USER")
+PANEL_PASS_HASH_SQL=$(sql_escape "$PANEL_PASS_HASH")
 sqlite3 "$XUI_DB" \
-    "UPDATE users SET username='${PANEL_USER}', password='${PANEL_PASS_HASH_SQL}' WHERE id=1;" \
+    "UPDATE users SET username='${PANEL_USER_SQL}', password='${PANEL_PASS_HASH_SQL}' WHERE id=1;" \
     || die "Не удалось задать логин/пароль в БД."
 
 # ── Финальный старт (один раз, без рестарта) ─────────────────────────────────

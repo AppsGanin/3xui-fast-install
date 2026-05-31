@@ -1,7 +1,7 @@
 # shellcheck source=steps/_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
-info "Шаг 5/7: Установка Caddy selfsteal (SSL генерирует Caddy)..."
+info "Установка Caddy selfsteal (SSL генерирует Caddy)..."
 
 CADDY_CONTAINER="caddy-selfsteal"
 mkdir -p "$CERT_DIR"
@@ -13,21 +13,37 @@ info "Проверяю DNS: $DOMAIN → этот сервер..."
 _server_ip=$(curl -fsSL -4 --connect-timeout 5 ifconfig.io 2>/dev/null \
            || curl -fsSL -4 --connect-timeout 5 icanhazip.com 2>/dev/null \
            || true)
-_dns_ip=$(getent hosts "$DOMAIN" 2>/dev/null | awk '{print $1; exit}' \
-        || dig +short A "$DOMAIN" 2>/dev/null | grep -E '^[0-9.]+$' | head -1 \
-        || true)
+_dns_a_records=$(dig +short A "$DOMAIN" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)
+_dns_ip=$(printf '%s\n' "$_dns_a_records" | head -1)
+_dns_ahosts=$(getent ahosts "$DOMAIN" 2>/dev/null | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {print $1}' | uniq || true)
+if [[ -z "$_dns_ip" && -n "$_dns_ahosts" ]]; then
+    _dns_ip=$(printf '%s\n' "$_dns_ahosts" | head -1)
+fi
 if [[ -z "$_dns_ip" ]]; then
-    die "DNS для $DOMAIN не разрешается. Убедитесь, что A-запись настроена."
+    die "DNS для $DOMAIN не разрешается. Убедитесь, что A-запись настроена. A-записи: $(printf '%s,' "$_dns_a_records" | sed 's/,$//') ahosts: $(printf '%s,' "$_dns_ahosts" | sed 's/,$//')"
 fi
 if [[ -n "$_server_ip" && "$_dns_ip" != "$_server_ip" ]]; then
-    die "DNS для $DOMAIN указывает на $_dns_ip, а не на этот сервер ($_server_ip). Обновите A-запись."
+    die "DNS для $DOMAIN указывает на $_dns_ip, а не на этот сервер ($_server_ip). Проверьте A-запись. A-записи: $(printf '%s,' "$_dns_a_records" | sed 's/,$//') ahosts: $(printf '%s,' "$_dns_ahosts" | sed 's/,$//')"
 fi
 success "DNS: $DOMAIN → $_dns_ip"
 
 info "Запускаю selfsteal Caddy для домена $DOMAIN..."
-TERM=xterm bash <(curl -fsSL https://github.com/DigneZzZ/remnawave-scripts/raw/main/selfsteal.sh) \
-    @ --force --domain "$DOMAIN" install \
-    || die "Ошибка установки selfsteal Caddy."
+selfsteal_tmp_dir=$(mktemp -d)
+trap 'rm -rf "$selfsteal_tmp_dir"' EXIT
+selfsteal_installer="${selfsteal_tmp_dir}/selfsteal.sh"
+selfsteal_log="${selfsteal_tmp_dir}/selfsteal.log"
+
+curl -fsSL https://github.com/DigneZzZ/remnawave-scripts/raw/main/selfsteal.sh \
+    -o "$selfsteal_installer" \
+    || die "Не удалось скачать selfsteal installer."
+
+# У upstream installer strict-mode иногда падает без полезной диагностики;
+# --debug оставляет проверки, но не обрывает установку на безвредных командах.
+if ! TERM=dumb bash "$selfsteal_installer" @ --debug --force --domain "$DOMAIN" install >"$selfsteal_log" 2>&1; then
+    sed 's/^/[SELFSTEAL] /' "$selfsteal_log" | tail -n 80
+    die "Ошибка установки selfsteal Caddy."
+fi
+sed 's/^/[SELFSTEAL] /' "$selfsteal_log" | tail -n 80
 
 info "Жду сертификат Let's Encrypt от Caddy (до 180 с)..."
 for i in $(seq 1 180); do

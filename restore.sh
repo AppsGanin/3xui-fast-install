@@ -9,11 +9,9 @@
 # =============================================================================
 set -euo pipefail
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
-info()    { echo -e "${CYAN}[INFO]${NC}  $*"; }
-success() { echo -e "${GREEN}[OK]${NC}    $*"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-die()     { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/local_lib.sh
+source "$SCRIPT_ROOT/scripts/local_lib.sh"
 
 SERVER_IP="${1:-}"
 BACKUP_FILE="${2:-}"
@@ -22,12 +20,8 @@ BACKUP_FILE="${2:-}"
 [[ -f "$BACKUP_FILE" ]] || die "Файл не найден: $BACKUP_FILE"
 shift 2
 
-SSH_PORT="${SSH_PORT:-22}"
-SSH_USER="${SSH_USER:-root}"
-SSH_EXTRA=(${@+"${@}"})
-_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -p "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"})
-SCP_OPTS=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$_KNOWN_HOSTS" -o ConnectTimeout=10 -P "$SSH_PORT" ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"});
+SSH_EXTRA=("$@")
+init_ssh_options
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 REMOTE_TMP="/tmp/3xui_restore_${TIMESTAMP}.tar.gz"
@@ -74,8 +68,8 @@ if [[ -d "$TMP_DIR/cert" ]]; then
     echo "[INFO] Восстанавливаю ${XUI_DIR}/cert/..."
     mkdir -p "${XUI_DIR}/cert"
     cp -a "$TMP_DIR/cert/." "${XUI_DIR}/cert/"
-    find "${XUI_DIR}/cert" -name "*.key" -o -name "privkey.pem" | xargs -r chmod 600
-    find "${XUI_DIR}/cert" -name "*.pem" ! -name "privkey.pem" -o -name "*.crt" | xargs -r chmod 644
+    find "${XUI_DIR}/cert" \( -name "*.key" -o -name "privkey.pem" \) -print | xargs -r chmod 600
+    find "${XUI_DIR}/cert" \( \( -name "*.pem" ! -name "privkey.pem" \) -o -name "*.crt" \) -print | xargs -r chmod 644
 fi
 
 # Восстанавливаем docker-compose.yml

@@ -1,7 +1,7 @@
 # shellcheck source=steps/_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
-info "Шаг 1/7: Включение BBR..."
+info "Включение BBR..."
 
 if sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q bbr; then
     info "BBR уже включён, пропускаем."

@@ -31,22 +31,27 @@ GeoIP/GeoSite для клиентов Happ подписки берутся из 
 
 ## Требования
 
-- VPS с Debian/Ubuntu, root-доступ по SSH
+- VPS с Debian/Ubuntu, root-доступ по SSH (пользователь root)
+- Версии: Debian 12+ / Ubuntu 22.04+
 - Домен с A-записью, направленной на IP сервера
 - Открытые порты: **80** (Let's Encrypt), **443** (Reality), **63000/UDP** (Hysteria2)
+
+Рекомендуемый провайдер: [https://www.vdsina.com](https://www.vdsina.com/?partner=nmzki7z7tu)
 
 ## Быстрый старт
 
 ### С локальной машины (через deploy.sh)
 
 ```bash
-git clone https://github.com/USER/REPO 3xui-personal
+git clone https://github.com/AppsGanin/3xui-fast-install/3xui-personal
 cd 3xui-personal
 
-DOMAIN=vpn.example.com bash deploy.sh 1.2.3.4
+bash deploy.sh 1.2.3.4
 ```
 
 По окончании скрипт выведет URL панели, логин и пароль.
+
+Для установки через ИИ-агента см. [AI_INSTALL.md](AI_INSTALL.md).
 
 ---
 
@@ -54,7 +59,7 @@ DOMAIN=vpn.example.com bash deploy.sh 1.2.3.4
 
 ### `deploy.sh` — установка с локальной машины
 
-Копирует скрипты на сервер, запускает `setup.sh` в `screen`-сессии и показывает отфильтрованный лог прогресса. При Ctrl+C — останавливает установку на сервере.
+Копирует скрипты на сервер, запускает `setup.sh` и показывает отфильтрованный лог прогресса. При Ctrl+C — останавливает установку на сервере.
 
 ```bash
 # Минимальный (спросит домен интерактивно)
@@ -130,7 +135,7 @@ bash restore.sh <IP> backups/backup_*.tar.gz -i ~/.ssh/id_rsa
 | `PANEL_PATH`       | случайный      | URL-путь панели                     |
 | `SUB_PORT`         | `60001`        | Порт подписок                       |
 | `SUB_PATH`         | `/subs/`       | URL-путь подписок                   |
-| `SUB_TITLE`        | `🏡 Home`      | Название подписки                   |
+| `SUB_TITLE`        | домен          | Название подписки                   |
 | `WARP_PROXY_PORT`  | `40000`        | SOCKS5-порт WARP (localhost)        |
 | `OPERA_PROXY_PORT` | `40001`        | SOCKS5-порт Opera Proxy (localhost) |
 | `OPERA_COUNTRY`    | `EU`           | Регион Opera Proxy                  |
@@ -161,17 +166,21 @@ bash deploy.sh 1.2.3.4
 ├── backup.sh           # Резервное копирование
 ├── restore.sh          # Восстановление из бекапа
 ├── backups/            # Локальные бекапы (в .gitignore)
+├── scripts/
+│   └── local_lib.sh    # Общие функции локальных deploy/backup/restore
 └── steps/
+    ├── prereqs.sh      # Установка зависимостей (curl, python3, ca-certificates и др.)
     ├── setup.sh        # Оркестратор — запускает шаги по порядку
     ├── _lib.sh         # Общие функции, переменные с дефолтами
-    ├── 01_bbr.sh       # Включение BBR congestion control
-    ├── 02_ufw.sh       # Настройка UFW фаервола
-    ├── 03a_warp.sh     # Установка Cloudflare WARP
-    ├── 03b_opera_proxy.sh  # Установка Opera Proxy
-    ├── 03c_tor.sh      # Установка Tor
-    ├── 04_docker.sh    # Установка Docker + fail2ban
-    ├── 05_selfsteal.sh # Caddy selfsteal + Let's Encrypt
-    └── 06_xui.sh       # 3x-ui, Reality-ключи, Xray config, БД
+    ├── bbr.sh          # Включение BBR congestion control
+    ├── ufw.sh          # Настройка UFW фаервола
+    ├── warp.sh         # Установка Cloudflare WARP
+    ├── opera-proxy.sh  # Установка Opera Proxy
+    ├── tor.sh          # Установка Tor
+    ├── fail2ban.sh     # Установка fail2ban
+    ├── docker.sh       # Установка Docker
+    ├── selfsteal.sh    # Caddy selfsteal + Let's Encrypt
+    └── xui.sh          # 3x-ui, Reality-ключи, Xray config, БД
 ```
 
 ---

@@ -1,7 +1,7 @@
 # shellcheck source=steps/_lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
-info "Шаг 4/7: Установка Docker и Docker Compose..."
+info "Установка Docker и Docker Compose..."
 
 if command -v docker &>/dev/null; then
     info "Docker уже установлен, пропускаем."
@@ -16,7 +16,6 @@ if docker compose version &>/dev/null 2>&1; then
 else
     info "Устанавливаю docker-compose-plugin..."
     . /etc/os-release
-    apt-get install -y -qq ca-certificates curl gnupg
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL "https://download.docker.com/linux/${ID}/gpg" \
         | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
@@ -31,15 +30,3 @@ https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" \
     success "Docker Compose plugin установлен."
 fi
 
-# ── fail2ban ──────────────────────────────────────────────────────────────────
-if command -v fail2ban-server &>/dev/null; then
-    info "fail2ban уже установлен, пропускаем."
-else
-    info "Устанавливаю fail2ban..."
-    apt-get install -y -qq fail2ban \
-        || warn "Не удалось установить fail2ban — пропускаю."
-    command -v fail2ban-server &>/dev/null && {
-        systemctl enable --now fail2ban
-        success "fail2ban установлен и запущен."
-    }
-fi
