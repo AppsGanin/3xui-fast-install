@@ -84,6 +84,23 @@ sql_escape() {
     printf '%s' "${1//\'/\'\'}"
 }
 
+random_alnum() {
+    local length="$1" value=""
+    value=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c "$length" || true)
+    [[ -n "$value" ]] || die "Не удалось сгенерировать случайную строку."
+    printf '%s' "$value"
+}
+
+random_uuid_v4() {
+    local hex
+    hex=$(openssl rand -hex 16 || true)
+    [[ ${#hex} -eq 32 ]] || die "Не удалось сгенерировать UUID клиента."
+    printf '%s-%s-4%s-%s%s-%s' \
+        "${hex:0:8}" "${hex:8:4}" "${hex:13:3}" \
+        "$(printf '%x' "$(( (0x${hex:16:1} & 0x3) | 0x8 ))")" \
+        "${hex:17:3}" "${hex:20:12}"
+}
+
 [[ $EUID -ne 0 ]] && die "Запустите скрипт от root: sudo bash $0"
 
 export WARP_PROXY_PORT="${WARP_PROXY_PORT:-40000}"
@@ -103,6 +120,11 @@ export SUB_PORT="${SUB_PORT:-60001}"
 export SUB_TITLE="${SUB_TITLE:-}"
 export SUB_PATH="${SUB_PATH:-/subs/}"
 
+export CLIENT_EMAIL="${CLIENT_EMAIL:-}"
+export CLIENT_UUID="${CLIENT_UUID:-}"
+export CLIENT_SUB_ID="${CLIENT_SUB_ID:-}"
+export CLIENT_HY2_AUTH="${CLIENT_HY2_AUTH:-}"
+
 if [[ -z "${PANEL_PASS:-}" ]]; then
     PANEL_PASS=$(openssl rand -base64 36 | tr -dc 'a-zA-Z0-9' | head -c 18 || true)
     [[ -n "$PANEL_PASS" ]] || die "Не удалось сгенерировать пароль панели."
@@ -114,6 +136,31 @@ if [[ -z "${PANEL_PATH:-}" ]]; then
     [[ -n "$PANEL_PATH" ]] || die "Не удалось сгенерировать путь панели."
     export PANEL_PATH
 fi
+
+if [[ -z "$CLIENT_EMAIL" ]]; then
+    CLIENT_EMAIL="client-$(random_alnum 6)"
+    export CLIENT_EMAIL
+fi
+
+if [[ -z "$CLIENT_UUID" ]]; then
+    CLIENT_UUID=$(random_uuid_v4)
+    export CLIENT_UUID
+fi
+
+if [[ -z "$CLIENT_SUB_ID" ]]; then
+    CLIENT_SUB_ID=$(random_alnum 16 | tr '[:upper:]' '[:lower:]')
+    export CLIENT_SUB_ID
+fi
+
+if [[ -z "$CLIENT_HY2_AUTH" ]]; then
+    CLIENT_HY2_AUTH=$(random_alnum 24)
+    export CLIENT_HY2_AUTH
+fi
+
+[[ "$CLIENT_EMAIL" =~ ^[A-Za-z0-9._@-]+$ ]] || die "CLIENT_EMAIL может содержать только латиницу, цифры, точку, подчёркивание, @ и дефис."
+[[ "$CLIENT_UUID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || die "CLIENT_UUID должен быть UUID."
+[[ "$CLIENT_SUB_ID" =~ ^[A-Za-z0-9]+$ ]] || die "CLIENT_SUB_ID может содержать только латиницу и цифры."
+[[ "$CLIENT_HY2_AUTH" =~ ^[A-Za-z0-9._@=-]+$ ]] || die "CLIENT_HY2_AUTH может содержать только латиницу, цифры, точку, подчёркивание, @, = и дефис."
 
 for _port_var in \
     WARP_PROXY_PORT OPERA_PROXY_PORT TOR_PORT XRAY_API_PORT HY2_PORT \

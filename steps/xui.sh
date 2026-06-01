@@ -57,8 +57,6 @@ REALITY_PRIVATE=$(echo "$REALITY_KEYS" | awk '/PrivateKey:/ {print $2}' | tr -d 
 REALITY_PUBLIC=$(echo "$REALITY_KEYS"  | awk '/Password \(PublicKey\):/ {print $NF}' | tr -d '[:space:]')
 [[ -z "$REALITY_PRIVATE" ]] && die "Не удалось извлечь приватный ключ: $REALITY_KEYS"
 [[ -z "$REALITY_PUBLIC"  ]] && die "Не удалось извлечь публичный ключ: $REALITY_KEYS"
-info "Reality private: $REALITY_PRIVATE"
-info "Reality public:  $REALITY_PUBLIC"
 
 # Останавливаем для применения настроек
 docker compose -f "${XUI_DIR}/docker-compose.yml" stop
@@ -146,7 +144,8 @@ xui_db_set subCertFile        "${CERT_DIR}/fullchain.pem"
 xui_db_set subKeyFile         "${CERT_DIR}/privkey.pem"
 
 # ── VLESS Reality ────────────────────────────────────────────────────────────
-VLESS_REALITY_SETTINGS="{\"clients\":[],\"decryption\":\"none\",\"fallbacks\":[{\"dest\":9443,\"xver\":1}]}"
+# В новой версии 3x-ui клиенты хранятся в отдельных таблицах clients/client_inbounds/client_traffics
+VLESS_REALITY_SETTINGS="{\"clients\":[],\"decryption\":\"none\",\"encryption\":\"none\",\"fallbacks\":[{\"dest\":9443,\"xver\":1}]}"
 VLESS_REALITY_STREAM="{\"network\":\"tcp\",\"security\":\"reality\",\"externalProxy\":[],\"realitySettings\":{${VLESS_REALITY_KEYS_SETTINGS}},\"tcpSettings\":{\"acceptProxyProtocol\":false,\"header\":{\"type\":\"none\"}}}"
 VLESS_REALITY_SNIFFING='{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"metadataOnly":false,"routeOnly":false}'
 
@@ -155,14 +154,14 @@ VLESS_REALITY_SS_SQL="${VLESS_REALITY_STREAM//\'/\'\'}"
 VLESS_REALITY_SN_SQL="${VLESS_REALITY_SNIFFING//\'/\'\'}"
 
 sqlite3 "$XUI_DB" \
-    "DELETE FROM inbounds WHERE tag='inbound-${VLESS_PORT}';
+    "DELETE FROM inbounds WHERE tag='inbound-vless-tcp';
      INSERT INTO inbounds (user_id,up,down,total,remark,enable,expiry_time,listen,port,protocol,settings,stream_settings,tag,sniffing)
-     VALUES (1,0,0,0,'VLESS Reality',1,0,'',${VLESS_PORT},'vless','${VLESS_REALITY_SE_SQL}','${VLESS_REALITY_SS_SQL}','inbound-${VLESS_PORT}','${VLESS_REALITY_SN_SQL}');" \
+     VALUES (1,0,0,0,'VLESS Reality',1,0,'',${VLESS_PORT},'vless','${VLESS_REALITY_SE_SQL}','${VLESS_REALITY_SS_SQL}','inbound-vless-tcp','${VLESS_REALITY_SN_SQL}');" \
     || die "Ошибка INSERT VLESS Reality inbound в БД"
 
 # ── Hysteria2 ─────────────────────────────────────────────────────────────────
-HYSTERIA2_SETTINGS='{"clients":[],"version":2}'
-HYSTERIA2_STREAM="{\"network\":\"hysteria\",\"security\":\"tls\",\"externalProxy\":[],\"tlsSettings\":{\"serverName\":\"$DOMAIN\",\"minVersion\":\"1.2\",\"maxVersion\":\"1.3\",\"cipherSuites\":\"\",\"rejectUnknownSni\":true,\"disableSystemRoot\":false,\"enableSessionResumption\":true,\"certificates\":[{\"certificateFile\":\"${CERT_DIR}/fullchain.pem\",\"keyFile\":\"${CERT_DIR}/privkey.pem\",\"oneTimeLoading\":false,\"usage\":\"encipherment\",\"buildChain\":false}],\"alpn\":[\"h3\"],\"echServerKeys\":\"\",\"settings\":{\"fingerprint\":\"randomized\",\"echConfigList\":\"\"}},\"hysteriaSettings\":{\"version\":2,\"auth\":\"\",\"udpIdleTimeout\":60,\"masquerade\":{\"type\":\"proxy\",\"dir\":\"\",\"url\":\"twitch.tv\",\"rewriteHost\":true,\"insecure\":false,\"content\":\"\",\"headers\":{},\"statusCode\":0}}}"
+HYSTERIA2_SETTINGS="{\"clients\":[],\"version\":2}"
+HYSTERIA2_STREAM="{\"network\":\"hysteria\",\"security\":\"tls\",\"externalProxy\":[],\"tlsSettings\":{\"serverName\":\"$DOMAIN\",\"minVersion\":\"1.2\",\"maxVersion\":\"1.3\",\"cipherSuites\":\"\",\"rejectUnknownSni\":true,\"disableSystemRoot\":false,\"enableSessionResumption\":true,\"certificates\":[{\"certificateFile\":\"${CERT_DIR}/fullchain.pem\",\"keyFile\":\"${CERT_DIR}/privkey.pem\",\"oneTimeLoading\":false,\"usage\":\"encipherment\",\"buildChain\":false}],\"alpn\":[\"h3\"],\"echServerKeys\":\"\",\"settings\":{\"fingerprint\":\"randomized\",\"echConfigList\":\"\"}},\"hysteriaSettings\":{\"version\":2,\"auth\":\"$CLIENT_HY2_AUTH\",\"udpIdleTimeout\":60,\"masquerade\":{\"type\":\"proxy\",\"dir\":\"\",\"url\":\"twitch.tv\",\"rewriteHost\":true,\"insecure\":false,\"content\":\"\",\"headers\":{},\"statusCode\":0}}}"
 HYSTERIA2_SNIFFING='{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"metadataOnly":false,"routeOnly":false}'
 
 HYSTERIA2_SE_SQL="${HYSTERIA2_SETTINGS//\'/\'\'}"
@@ -170,10 +169,39 @@ HYSTERIA2_SS_SQL="${HYSTERIA2_STREAM//\'/\'\'}"
 HYSTERIA2_SN_SQL="${HYSTERIA2_SNIFFING//\'/\'\'}"
 
 sqlite3 "$XUI_DB" \
-    "DELETE FROM inbounds WHERE tag='inbound-${HY2_PORT}';
+    "DELETE FROM inbounds WHERE tag='inbound-hy2';
      INSERT INTO inbounds (user_id,up,down,total,remark,enable,expiry_time,listen,port,protocol,settings,stream_settings,tag,sniffing)
-     VALUES (1,0,0,0,'Hy2',1,0,'',${HY2_PORT},'hysteria','${HYSTERIA2_SE_SQL}','${HYSTERIA2_SS_SQL}','inbound-${HY2_PORT}','${HYSTERIA2_SN_SQL}');" \
+     VALUES (1,0,0,0,'Hy2',1,0,'',${HY2_PORT},'hysteria','${HYSTERIA2_SE_SQL}','${HYSTERIA2_SS_SQL}','inbound-hy2','${HYSTERIA2_SN_SQL}');" \
     || die "Ошибка INSERT Hysteria2 inbound в БД"
+
+# ── Клиент (новая структура: clients + client_inbounds + client_traffics) ─────
+CLIENT_EMAIL_SQL=$(sql_escape "$CLIENT_EMAIL")
+CLIENT_UUID_SQL=$(sql_escape "$CLIENT_UUID")
+CLIENT_SUB_ID_SQL=$(sql_escape "$CLIENT_SUB_ID")
+CLIENT_HY2_AUTH_SQL=$(sql_escape "$CLIENT_HY2_AUTH")
+NOW_MS=$(date +%s)000
+
+sqlite3 "$XUI_DB" \
+    "DELETE FROM client_traffics WHERE email='${CLIENT_EMAIL_SQL}';
+     DELETE FROM client_inbounds WHERE client_id IN (SELECT id FROM clients WHERE email='${CLIENT_EMAIL_SQL}');
+     DELETE FROM clients WHERE email='${CLIENT_EMAIL_SQL}';
+     INSERT INTO clients (email,sub_id,uuid,auth,flow,security,limit_ip,total_gb,expiry_time,enable,tg_id,group_name,comment,reset,created_at,updated_at)
+     VALUES ('${CLIENT_EMAIL_SQL}','${CLIENT_SUB_ID_SQL}','${CLIENT_UUID_SQL}','${CLIENT_HY2_AUTH_SQL}','xtls-rprx-vision','auto',0,0,0,1,0,'','',0,${NOW_MS},${NOW_MS});
+     INSERT INTO client_inbounds (client_id,inbound_id,flow_override,created_at)
+     VALUES ((SELECT id FROM clients WHERE email='${CLIENT_EMAIL_SQL}'),(SELECT id FROM inbounds WHERE tag='inbound-vless-tcp'),'xtls-rprx-vision',${NOW_MS});
+     INSERT INTO client_inbounds (client_id,inbound_id,flow_override,created_at)
+     VALUES ((SELECT id FROM clients WHERE email='${CLIENT_EMAIL_SQL}'),(SELECT id FROM inbounds WHERE tag='inbound-hy2'),'',${NOW_MS});
+     INSERT INTO client_traffics (inbound_id,enable,email,up,down,expiry_time,total,reset)
+     VALUES ((SELECT id FROM inbounds WHERE tag='inbound-vless-tcp'),1,'${CLIENT_EMAIL_SQL}',0,0,0,0,0);" \
+    || die "Ошибка INSERT клиента в БД"
+
+# ── Добавление клиента в settings инбаундов (3x-ui ищет клиентов в JSON) ─────
+CLIENT_JSON="{\"id\":\"${CLIENT_UUID}\",\"auth\":\"${CLIENT_HY2_AUTH}\",\"flow\":\"xtls-rprx-vision\",\"security\":\"auto\",\"email\":\"${CLIENT_EMAIL}\",\"limitIp\":0,\"totalGB\":0,\"expiryTime\":0,\"enable\":true,\"tgId\":0,\"subId\":\"${CLIENT_SUB_ID}\",\"comment\":\"\",\"reset\":0,\"created_at\":${NOW_MS},\"updated_at\":${NOW_MS},\"password\":\"\"}"
+CLIENT_JSON_SQL=$(sql_escape "$CLIENT_JSON")
+sqlite3 "$XUI_DB" \
+    "UPDATE inbounds SET settings=json_set(settings,'$.clients',json_array(json('${CLIENT_JSON_SQL}'))) WHERE tag='inbound-vless-tcp';
+     UPDATE inbounds SET settings=json_set(settings,'$.clients',json_array(json('${CLIENT_JSON_SQL}'))) WHERE tag='inbound-hy2';" \
+    || die "Ошибка обновления settings инбаундов с клиентом"
 
 # ── Хэш пароля (до старта контейнера) ───────────────────────────────────────
 if ! command_exists htpasswd; then

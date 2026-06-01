@@ -45,15 +45,15 @@ if ! TERM=dumb bash "$selfsteal_installer" @ --debug --force --domain "$DOMAIN" 
 fi
 sed 's/^/[SELFSTEAL] /' "$selfsteal_log" | tail -n 80
 
-info "Жду сертификат Let's Encrypt от Caddy (до 180 с)..."
-for i in $(seq 1 180); do
+info "Жду сертификат Let's Encrypt от Caddy (до 60 с)..."
+for i in $(seq 1 60); do
     docker exec "$CADDY_CONTAINER" test -f "$CERT_INSIDE" 2>/dev/null && break
     sleep 1
 done
 if ! docker exec "$CADDY_CONTAINER" test -f "$CERT_INSIDE" 2>/dev/null; then
     warn "Логи Caddy для диагностики:"
     docker logs --tail 40 "$CADDY_CONTAINER" 2>&1 || true
-    die "Caddy не получил сертификат за 180 секунд. DNS: $DOMAIN → $_dns_ip. Порт 80 должен быть открыт."
+    die "Caddy не получил сертификат за 60 секунд. DNS: $DOMAIN → $_dns_ip. Порт 80 должен быть открыт."
 fi
 
 info "Копирую сертификат из Caddy на хост..."

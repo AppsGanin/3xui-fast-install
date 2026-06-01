@@ -74,7 +74,7 @@ chmod 755 "$OPERA_BIN"
 [[ -n "$_latest_tag" ]] && echo "$_latest_tag" > "$_ver_file"
 
 # ── Systemd-сервис ────────────────────────────────────────────────────────────
-info "Создаю systemd-сервис opera-proxy (порт ${OPERA_PROXY_PORT}, страна ${OPERA_COUNTRY})..."
+info "Создаю systemd-сервис opera-proxy (порт ${OPERA_PROXY_PORT}, регион: ${OPERA_COUNTRY})..."
 cat > "$OPERA_SERVICE" <<EOF
 [Unit]
 Description=Opera Proxy (SurfEasy VPN)

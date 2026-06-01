@@ -47,11 +47,10 @@ _run_step "3x-ui"       "$SCRIPT_DIR/xui.sh"
 # ─── Сохраняем доступы ────────────────────────────────────────────────────────
 cat > /root/3xui-credentials.txt <<CREDS
 Дата установки : $(date '+%Y-%m-%d %H:%M:%S')
-Домен          : ${DOMAIN}
 Панель URL     : https://${DOMAIN}:${PANEL_PORT}/${PANEL_PATH}/
 Логин          : ${PANEL_USER}
 Пароль         : ${PANEL_PASS}
-Подписки       : https://${DOMAIN}:${SUB_PORT}${SUB_PATH}
+Подписка       : https://${DOMAIN}:${SUB_PORT}${SUB_PATH%/}/${CLIENT_SUB_ID}
 Selfsteal      : https://${DOMAIN}
 Сертификат     : ${XUI_DIR}/cert/ssl/fullchain.pem
 WARP SOCKS5    : 127.0.0.1:${WARP_PROXY_PORT}

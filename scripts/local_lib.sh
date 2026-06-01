@@ -20,11 +20,15 @@ init_ssh_options() {
     SSH_PORT="${SSH_PORT:-22}"
     SSH_USER="${SSH_USER:-root}"
     _KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
+    _SSH_SOCKET="${TMPDIR:-/tmp}/ssh-ctl-$$-${SSH_USER}.sock"
 
     SSH_OPTS=(
         -o StrictHostKeyChecking=accept-new
         -o UserKnownHostsFile="$_KNOWN_HOSTS"
         -o ConnectTimeout="${SSH_CONNECT_TIMEOUT:-10}"
+        -o ControlMaster=auto
+        -o ControlPath="$_SSH_SOCKET"
+        -o ControlPersist=180
         -p "$SSH_PORT"
         ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"}
     )
@@ -32,6 +36,9 @@ init_ssh_options() {
         -o StrictHostKeyChecking=accept-new
         -o UserKnownHostsFile="$_KNOWN_HOSTS"
         -o ConnectTimeout="${SSH_CONNECT_TIMEOUT:-10}"
+        -o ControlMaster=auto
+        -o ControlPath="$_SSH_SOCKET"
+        -o ControlPersist=180
         -P "$SSH_PORT"
         ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"}
     )

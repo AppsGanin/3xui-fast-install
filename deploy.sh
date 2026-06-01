@@ -37,6 +37,7 @@ REMOTE_ENV_VARS=(
     DOMAIN
     PANEL_PORT PANEL_USER PANEL_PASS PANEL_PATH
     SUB_PORT SUB_PATH SUB_TITLE
+    CLIENT_EMAIL CLIENT_UUID CLIENT_SUB_ID CLIENT_HY2_AUTH
     WARP_PROXY_PORT OPERA_PROXY_PORT OPERA_COUNTRY TOR_PORT XRAY_API_PORT HY2_PORT
     XUI_DIR CERT_DIR VLESS_PORT
 )
@@ -50,7 +51,7 @@ remote_env_prefix="${remote_env_assignments[*]}"
 
 # ─── Ожидание SSH ─────────────────────────────────────────────────────────────
 info "Ожидаю SSH ${SSH_USER}@${SERVER_IP}:${SSH_PORT}..."
-WAIT_MAX=300; WAIT_STEP=5; elapsed=0
+WAIT_MAX=30; WAIT_STEP=5; elapsed=0
 while true; do
     ssh_error=$(ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SERVER_IP}" 'exit 0' 2>&1) && break
     if grep -q "REMOTE HOST IDENTIFICATION HAS CHANGED" <<<"$ssh_error"; then

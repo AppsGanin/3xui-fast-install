@@ -1,4 +1,4 @@
-# 3x-ui Personal VPN Setup
+# 3x-ui Fast install Setup
 
 Личный VPN-сервер под ключ за один запуск. Скрипты разворачивают 3x-ui, VLESS Reality, Hysteria2, selfsteal Caddy, Cloudflare WARP, Opera Proxy, Tor, BBR, UFW и fail2ban, а затем сразу выдают готовые доступы к панели.
 
@@ -6,6 +6,8 @@
 
 - Готовый 3x-ui в Docker с автозапуском после перезагрузки сервера.
 - Два протокола из коробки: VLESS Reality и Hysteria2.
+- Первый клиент создаётся автоматически сразу в обоих inbound'ах.
+- Персональная ссылка подписки сохраняется в файле доступов.
 - Сертификаты Let's Encrypt через Caddy selfsteal.
 - Раздельную маршрутизацию: RU-трафик через WARP, выбранные зарубежные сервисы через Opera Proxy, `.onion` через Tor, остальное напрямую.
 - Настроенный фаервол, BBR и базовую защиту fail2ban.
@@ -26,34 +28,34 @@ cd 3xui-personal
 bash deploy.sh 1.2.3.4
 ```
 
-После установки скрипт покажет URL панели, логин, пароль и адрес подписок. Эти же данные сохраняются на сервере в `/root/3xui-credentials.txt`.
+После установки скрипт покажет URL панели, логин, пароль и персональную ссылку подписки первого клиента. Эти же данные сохраняются на сервере в `/root/3xui-credentials.txt`.
 
 Для установки через ИИ-агента см. [AI_INSTALL.md](AI_INSTALL.md).
 
 ## Компоненты
 
-| Компонент           | Что делает                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------------ |
-| **3x-ui**           | Панель управления Xray в Docker, inbound'ы VLESS Reality и Hysteria2                             |
-| **VLESS + Reality** | Основной TCP-вход, по умолчанию на `443`, с fallback-маскировкой через Caddy                     |
-| **Hysteria2**       | UDP-вход поверх TLS, по умолчанию на `63000/udp`, хорошо переживает мобильные сети и потери      |
-| **Caddy selfsteal** | Получает Let's Encrypt сертификат и держит fallback-маскировку                                   |
-| **Cloudflare WARP** | Локальный SOCKS5 outbound для RU-ресурсов                                                        |
-| **Opera Proxy**     | Локальный SOCKS5 outbound для выбранных зарубежных сервисов                                      |
-| **Tor**             | Локальный SOCKS5 outbound для `.onion` и отдельных Tor-сценариев                                 |
-| **BBR**             | TCP congestion control для более стабильной скорости                                             |
-| **UFW**             | Открывает только нужные порты: SSH, 80, Reality, Hysteria2, панель и подписки                    |
-| **fail2ban**        | Базовая защита от перебора                                                                       |
+| Компонент           | Что делает                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| **3x-ui**           | Панель управления Xray в Docker, inbound'ы VLESS Reality и Hysteria2                        |
+| **VLESS + Reality** | Основной TCP-вход, по умолчанию на `443`, с fallback-маскировкой через Caddy                |
+| **Hysteria2**       | UDP-вход поверх TLS, по умолчанию на `63000/udp`, хорошо переживает мобильные сети и потери |
+| **Caddy selfsteal** | Получает Let's Encrypt сертификат и держит fallback-маскировку                              |
+| **Cloudflare WARP** | Локальный SOCKS5 outbound для RU-ресурсов                                                   |
+| **Opera Proxy**     | Локальный SOCKS5 outbound для выбранных зарубежных сервисов                                 |
+| **Tor**             | Локальный SOCKS5 outbound для `.onion` и отдельных Tor-сценариев                            |
+| **BBR**             | TCP congestion control для более стабильной скорости                                        |
+| **UFW**             | Открывает только нужные порты: SSH, 80, Reality, Hysteria2, панель и подписки               |
+| **fail2ban**        | Базовая защита от перебора                                                                  |
 
 ## Маршрутизация
 
-| Трафик                                    | Куда отправляется                                               |
-| ----------------------------------------- | --------------------------------------------------------------- |
-| Реклама и вредоносные домены              | `blocked`                                                       |
-| RU-домены `.ru`, `.su`, `.рф` и RU GeoIP  | `warp`, чтобы не светить IP сервера перед RU-ресурсами          |
-| `.onion`, `check.torproject.org`          | `tor`                                                           |
-| Disney+, Reddit                           | `opera`                                                         |
-| Всё остальное                             | `direct`                                                        |
+| Трафик                                   | Куда отправляется                                      |
+| ---------------------------------------- | ------------------------------------------------------ |
+| Реклама и вредоносные домены             | `blocked`                                              |
+| RU-домены `.ru`, `.su`, `.рф` и RU GeoIP | `warp`, чтобы не светить IP сервера перед RU-ресурсами |
+| `.onion`, `check.torproject.org`         | `tor`                                                  |
+| Disney+, Reddit                          | `opera`                                                |
+| Всё остальное                            | `direct`                                               |
 
 GeoIP/GeoSite для клиентов Happ подписки берутся из [roscomvpn-routing](https://github.com/hydraponique/roscomvpn-routing).
 
@@ -71,6 +73,33 @@ GeoIP/GeoSite для клиентов Happ подписки берутся из 
 **VDSina** — удобный вариант для личного VPN: быстрое создание VPS, root-доступ по SSH, понятная панель управления и тарифы, которых достаточно для домашнего использования 3x-ui. К тому же, при регистрации по [этой ссылке](https://www.vdsina.com/?partner=2c17h7h887kr) вы получите скидку 10% на оплату.
 
 [Создать VPS в VDSina](https://www.vdsina.com/?partner=2c17h7h887kr)
+
+## Где взять домен
+
+Домен нужен для Let's Encrypt сертификата и SNI маскировки Reality. Можно взять бесплатно:
+
+### DuckDNS
+
+**DuckDNS** — бесплатный динамический DNS, идеален для личной инфраструктуры. Регистрация за минуту, настройка A-записи элементарна, работает со статическим IP и с динамическим (если меняется):
+
+1. Перейти на [duckdns.org](https://www.duckdns.org/)
+2. Авторизоваться (через Google, GitHub или другие)
+3. Создать домен, например `myvpn.duckdns.org`
+4. Указать IP сервера в управлении доменом
+5. A-запись будет активна за несколько секунд
+
+[Создать домен в DuckDNS](https://www.duckdns.org/)
+
+### isroot.in
+
+**isroot.in** — ещё один вариант бесплатного динамического DNS с простой настройкой. Поддерживает статические IP:
+
+1. Перейти на [isroot.in](https://isroot.in/)
+2. Создать аккаунт
+3. Добавить домен и указать ваш IP
+4. DNS активируется за несколько секунд
+
+[Создать домен в isroot.in](https://isroot.in/)
 
 ## Способы установки
 
@@ -106,7 +135,7 @@ HY2_PORT=63001 \
 bash install.sh
 ```
 
-`install.sh` запускает `steps/setup.sh` на текущем сервере, показывает прогресс и после завершения выводит содержимое `/root/3xui-credentials.txt`.
+`install.sh` запускает `steps/setup.sh` на текущем сервере, создаёт первого клиента, показывает прогресс и после завершения выводит содержимое `/root/3xui-credentials.txt`.
 
 ### С локальной машины через SSH (Linux/Mac/WSL)
 
@@ -143,12 +172,12 @@ HY2_PORT=63001 \
 bash deploy.sh <IP>
 ```
 
-`deploy.sh` копирует `steps/` на сервер, запускает `setup.sh`, показывает прогресс и после завершения выводит содержимое `/root/3xui-credentials.txt`.
+`deploy.sh` копирует `steps/` на сервер, запускает `setup.sh`, создаёт первого клиента, показывает прогресс и после завершения выводит содержимое `/root/3xui-credentials.txt`.
 
 ## После установки
 
 - Панель: `https://<DOMAIN>:<PANEL_PORT>/<PANEL_PATH>/`
-- Подписки: `https://<DOMAIN>:<SUB_PORT><SUB_PATH>`
+- Подписка первого клиента: `https://<DOMAIN>:<SUB_PORT><SUB_PATH>/<CLIENT_SUB_ID>`
 - VLESS Reality: `<VLESS_PORT>/tcp`, по умолчанию `443/tcp`
 - Hysteria2: `<HY2_PORT>/udp`, по умолчанию `63000/udp`
 - Лог установки: `/root/3xui-install.log`
@@ -185,27 +214,31 @@ bash restore.sh <IP> backups/backup_*.tar.gz -i ~/.ssh/id_rsa
 
 Все ключевые параметры можно переопределить перед запуском `install.sh` или `deploy.sh`. Если переменная не задана, `steps/_lib.sh` подставит дефолт.
 
-| Переменная         | По умолчанию   | Описание                            |
-| ------------------ | -------------- | ----------------------------------- |
-| `DOMAIN`           | —              | Домен для Reality SNI и сертификата |
-| `PANEL_PORT`       | `60000`        | Порт панели 3x-ui                   |
-| `PANEL_USER`       | `admin`        | Логин панели                        |
-| `PANEL_PASS`       | случайный      | Пароль панели                       |
-| `PANEL_PATH`       | случайный      | URL-путь панели                     |
-| `SUB_PORT`         | `60001`        | Порт подписок                       |
-| `SUB_PATH`         | `/subs/`       | URL-путь подписок                   |
-| `SUB_TITLE`        | домен          | Название подписки                   |
-| `VLESS_PORT`       | `443`          | Порт VLESS Reality                  |
-| `HY2_PORT`         | `63000`        | Порт Hysteria2 UDP                  |
-| `WARP_PROXY_PORT`  | `40000`        | SOCKS5-порт WARP на localhost       |
-| `OPERA_PROXY_PORT` | `40001`        | SOCKS5-порт Opera Proxy на localhost |
-| `OPERA_COUNTRY`    | `EU`           | Регион Opera Proxy                  |
-| `TOR_PORT`         | `40002`        | SOCKS5-порт Tor на localhost        |
-| `XRAY_API_PORT`    | `62789`        | Порт Xray API на localhost          |
-| `XUI_DIR`          | `/root`        | Директория данных 3x-ui на сервере  |
-| `SSH_PORT`         | `22`           | SSH-порт сервера                    |
-| `SSH_USER`         | `root`         | SSH-пользователь                    |
-| `BACKUP_DIR`       | `./backups`    | Локальная папка для бекапов         |
+| Переменная         | По умолчанию | Описание                             |
+| ------------------ | ------------ | ------------------------------------ |
+| `DOMAIN`           | —            | Домен для Reality SNI и сертификата  |
+| `PANEL_PORT`       | `60000`      | Порт панели 3x-ui                    |
+| `PANEL_USER`       | `admin`      | Логин панели                         |
+| `PANEL_PASS`       | случайный    | Пароль панели                        |
+| `PANEL_PATH`       | случайный    | URL-путь панели                      |
+| `SUB_PORT`         | `60001`      | Порт подписок                        |
+| `SUB_PATH`         | `/subs/`     | URL-путь подписок                    |
+| `SUB_TITLE`        | домен        | Название подписки                    |
+| `CLIENT_EMAIL`     | случайный    | Имя автоматически созданного клиента |
+| `CLIENT_UUID`      | случайный    | UUID VLESS-клиента                   |
+| `CLIENT_SUB_ID`    | случайный    | ID персональной подписки             |
+| `CLIENT_HY2_AUTH`  | случайный    | Auth-пароль Hysteria2-клиента        |
+| `VLESS_PORT`       | `443`        | Порт VLESS Reality                   |
+| `HY2_PORT`         | `63000`      | Порт Hysteria2 UDP                   |
+| `WARP_PROXY_PORT`  | `40000`      | SOCKS5-порт WARP на localhost        |
+| `OPERA_PROXY_PORT` | `40001`      | SOCKS5-порт Opera Proxy на localhost |
+| `OPERA_COUNTRY`    | `EU`         | Регион Opera Proxy                   |
+| `TOR_PORT`         | `40002`      | SOCKS5-порт Tor на localhost         |
+| `XRAY_API_PORT`    | `62789`      | Порт Xray API на localhost           |
+| `XUI_DIR`          | `/root`      | Директория данных 3x-ui на сервере   |
+| `SSH_PORT`         | `22`         | SSH-порт сервера                     |
+| `SSH_USER`         | `root`       | SSH-пользователь                     |
+| `BACKUP_DIR`       | `./backups`  | Локальная папка для бекапов          |
 
 Пример с кастомными параметрами:
 
@@ -216,6 +249,15 @@ PANEL_PASS=MySecretPass \
 VLESS_PORT=8443 \
 HY2_PORT=63001 \
 OPERA_COUNTRY=US \
+bash install.sh
+```
+
+Пример с фиксированным именем клиента и ID подписки:
+
+```bash
+DOMAIN=vpn.example.com \
+CLIENT_EMAIL=phone \
+CLIENT_SUB_ID=phone2026 \
 bash install.sh
 ```
 
