@@ -81,6 +81,10 @@ GeoIP/GeoSite для клиентов Happ подписки берутся из 
 
 [Создать VPS в Aeza](https://aeza.net/?ref=375522)
 
+**NetGrid Host** — NVMe VPS в 11 локациях от Амстердама до Майами, тарифы от €1.99/мес. Сервер поднимается за 60 секунд, включён выделенный IPv4, порт 1 Gbps и root-доступ.
+
+[Создать VPS в NetGrid Host](https://netgrid.host/ru?from=3491)
+
 ## Где взять домен
 
 Домен нужен для Let's Encrypt сертификата и SNI маскировки Reality. Можно взять бесплатно:
