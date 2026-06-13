@@ -15,6 +15,8 @@ case "$_arch" in
 esac
 
 ensure_dns "Установка opera-proxy" "github.com"
+ensure_dns "Установка opera-proxy" "release-assets.githubusercontent.com"
+ensure_dns "Установка opera-proxy" "api.github.com"
 
 _latest_url="https://github.com/Alexey71/opera-proxy/releases/latest/download/opera-proxy.${_arch_str}"
 _latest_tag="latest"

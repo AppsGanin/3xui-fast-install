@@ -69,6 +69,56 @@ dns_resolve_ipv4s() {
         | sort -u || true
 }
 
+doh_resolve_ipv4s() {
+    local host="$1" json
+
+    if command_exists curl; then
+        json=$(curl -fsSL --retry 2 --connect-timeout 5 --max-time 15 \
+            --resolve cloudflare-dns.com:443:1.1.1.1 \
+            -H 'accept: application/dns-json' \
+            "https://cloudflare-dns.com/dns-query?name=${host}&type=A" 2>/dev/null || true)
+    elif command_exists python3; then
+        json=$(python3 - "$host" <<'PY' 2>/dev/null || true
+import json, sys, urllib.request
+import ssl
+import urllib.parse
+host = sys.argv[1]
+req = urllib.request.Request(
+    f"https://1.1.1.1/dns-query?name={urllib.parse.quote(host)}&type=A",
+    headers={
+        "accept": "application/dns-json",
+        "Host": "cloudflare-dns.com",
+    },
+)
+try:
+    ctx = ssl._create_unverified_context()
+    with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+        sys.stdout.write(resp.read().decode())
+except Exception:
+    pass
+PY
+)
+    else
+        json=""
+    fi
+
+    printf '%s\n' "$json" \
+        | grep -oE '"data":"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"' \
+        | sed -E 's/^"data":"//; s/"$//' \
+        | sort -u || true
+}
+
+dns_update_hosts_entry() {
+    local host="$1" ip="$2"
+    [[ -n "$host" && -n "$ip" ]] || return 1
+
+    if grep -Eq "^[[:space:]]*${ip//./\\.}[[:space:]]+${host}([[:space:]]|$)" /etc/hosts 2>/dev/null; then
+        return 0
+    fi
+
+    printf '%s %s\n' "$ip" "$host" >> /etc/hosts
+}
+
 port_is_listening() {
     local port="$1"
     ss -H -lntp 2>/dev/null | awk -v port=":${port}" '$4 ~ port { found=1 } END { exit(found ? 0 : 1) }'
@@ -168,6 +218,17 @@ ensure_dns() {
     if [[ -n "$resolved" ]]; then
         success "${context}: DNS восстановлен для ${domain} (${resolved})."
         return 0
+    fi
+
+    info "${context}: пробую DoH fallback для ${domain}..."
+    resolved=$(doh_resolve_ipv4s "$domain")
+    if [[ -n "$resolved" ]]; then
+        dns_update_hosts_entry "$domain" "$(printf '%s\n' "$resolved" | head -1)" || true
+        resolved=$(dns_resolve_ipv4s "$domain")
+        if [[ -n "$resolved" ]]; then
+            success "${context}: DNS восстановлен через DoH для ${domain} (${resolved})."
+            return 0
+        fi
     fi
 
     dns_diagnostics "$context" "$domain" "" "$resolved"

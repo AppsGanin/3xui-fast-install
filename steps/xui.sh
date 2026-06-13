@@ -3,6 +3,10 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)/_lib.sh"
 
 info "Запуск 3x-ui (Docker)..."
 
+ensure_dns "Запуск 3x-ui" "ghcr.io"
+ensure_dns "Запуск 3x-ui" "pkg-containers.githubusercontent.com"
+ensure_dns "Запуск 3x-ui" "github-cloud.githubusercontent.com"
+
 mkdir -p "${XUI_DIR}/db" "${XUI_DIR}/cert"
 
 XUI_SERVICE_LIMITS=""
