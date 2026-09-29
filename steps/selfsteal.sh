@@ -228,17 +228,21 @@ http://${DOMAIN} {
 }
 
 https://${DOMAIN} {
-	# Сертификат через ACME. Основной CA — ZeroSSL (мягче к валидации, отдельные лимиты),
-	# фолбэк — Let's Encrypt. EAB для ZeroSSL Caddy генерирует сам по email (ключ не нужен).
-	# Порядок issuer'ов = порядок попыток; чтобы сделать основным LE — поменяй блоки местами.
+	# Сертификат через ACME. Основной CA — Let's Encrypt: быстрый и надёжный http-01.
+	# Фолбэк — ZeroSSL (у его мультивantage-валидации бывают зависания на десятки минут
+	# с подвисшим PollAuthorization — установка не укладывается в таймаут ожидания).
+	# tls-alpn-01 отключён: публичный 443 занят Xray (Reality), этот челлендж не пройдёт
+	# никогда, а каждая его неудача съедает лимит failed authorizations Let's Encrypt.
 	tls {
-		issuer acme {
-			dir https://acme.zerossl.com/v2/DV90
-			email admin@${DOMAIN}
-		}
 		issuer acme {
 			dir https://acme-v02.api.letsencrypt.org/directory
 			email admin@${DOMAIN}
+			disable_tlsalpn_challenge
+		}
+		issuer acme {
+			dir https://acme.zerossl.com/v2/DV90
+			email admin@${DOMAIN}
+			disable_tlsalpn_challenge
 		}
 	}
 	# Панель 3x-ui по секретному пути → локальный HTTPS-бэкенд x-ui.
