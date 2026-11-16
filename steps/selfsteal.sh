@@ -276,16 +276,16 @@ https://${DOMAIN} {
 		}
 	}
 
-    # Clash подписка имеет свой путь
-    @clash path /clash /clash/*
-    handle @clash {
-        reverse_proxy https://127.0.0.1:60001 {
-            transport http {
-                tls_insecure_skip_verify
-                versions 1.1
-            }
-        }
-    }
+	# Clash подписка имеет свой путь
+	@clash path /clash /clash/*
+	handle @clash {
+		reverse_proxy https://127.0.0.1:${SUB_PORT} {
+			transport http {
+				tls_insecure_skip_verify
+				versions 1.1
+			}
+		}
+	}
 
 	# Trojan-WS по секретному пути → localhost-инбаунд x-ui (ws без TLS).
 	# Caddy сам апгрейдит WebSocket; TLS здесь уже терминирован Caddy.
