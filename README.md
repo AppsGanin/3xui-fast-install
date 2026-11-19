@@ -370,7 +370,7 @@ ssh root@<IP> 'bash /root/3xui-setup/restore.sh latest'
 | `OPERA_REGION`    | `EU`         | Регион для Opera Proxy (`AM`, `EU`, `AS`, и т.д.)     |
 | `TRAFFIC_RESET`   | `monthly`    | Сброс трафика инбаундов (`never`, `daily`, `monthly`) |
 | `LOW_POWER_MODE`  | `0`          | Облегчённый режим для слабых VPS: меньше фоновой нагрузки, ниже лимит CPU сервиса `x-ui` (CPUQuota) |
-| `SSH_PORT`        | `22`         | SSH-порт сервера                                      |
+| `SSH_PORT`        | авто (sshd) | SSH-порт сервера |
 | `SSH_USER`        | `root`       | SSH-пользователь                                      |
 
 Если сервер совсем слабый, запустите установку так:

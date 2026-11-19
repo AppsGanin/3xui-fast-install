@@ -61,15 +61,24 @@ if command_exists ufw || install_packages ufw &>/dev/null; then
     # диапазона редиректятся на него в nat PREROUTING ещё до фильтра INPUT.
     # Trojan-WS наружу не открываем: он слушает localhost, а трафик приходит через
     # 443 (VLESS Reality steal → Caddy → localhost-инбаунд по секретному пути).
-    for port in 22 80 "$VLESS_PORT" "$HY2_PORT"; do
+    # SSH: открываем SSH_PORT (заданный или определённый автоматически) и все
+    # порты, на которых реально слушает sshd, чтобы не потерять доступ после
+    # `ufw reset`. Если порт SSH не 22, порт 22 не открываем.
+    ssh_ports=("$SSH_PORT")
+    while read -r p; do
+        [[ "$p" =~ ^[0-9]+$ ]] && ssh_ports+=("$p")
+    done < <(sshd -T 2>/dev/null | awk '$1=="port"{print $2}')
+    mapfile -t ssh_ports < <(printf '%s\n' "${ssh_ports[@]}" | sort -un)
+
+    for port in "${ssh_ports[@]}" 80 "$VLESS_PORT" "$HY2_PORT"; do
         ufw allow "$port"
     done
     ufw --force enable
 
     if truthy "$HY2_HOP"; then
-        success "UFW включён. Открытые порты: 22 80 ${VLESS_PORT} ${HY2_PORT}; port hopping ${HY2_HOP_RANGE}/udp → ${HY2_PORT} (панель/подписка/Trojan-WS — за Caddy на 443)."
+        success "UFW включён. Открытые порты: ${ssh_ports[*]} 80 ${VLESS_PORT} ${HY2_PORT}; port hopping ${HY2_HOP_RANGE}/udp → ${HY2_PORT} (панель/подписка/Trojan-WS — за Caddy на 443)."
     else
-        success "UFW включён. Открытые порты: 22 80 ${VLESS_PORT} ${HY2_PORT} (панель/подписка/Trojan-WS — за Caddy на 443)."
+        success "UFW включён. Открытые порты: ${ssh_ports[*]} 80 ${VLESS_PORT} ${HY2_PORT} (панель/подписка/Trojan-WS — за Caddy на 443)."
     fi
 else
     warn "UFW не найден и не удалось установить — пропущено."

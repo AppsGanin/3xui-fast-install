@@ -406,6 +406,17 @@ export OPERA_PROXY_PORT="40001"
 export TOR_PORT="40002"
 export XRAY_API_PORT="62789"
 export HY2_PORT="${HY2_PORT:-63000}"
+# SSH-порт сервера. Если не задан явно, берём фактический порт из sshd
+# (sshd -T), иначе из текущего SSH-соединения, иначе 22. Нужен UFW, чтобы после
+# включения фаервола не потерять доступ при нестандартном порту SSH.
+detect_ssh_port() {
+    local p
+    p=$(sshd -T 2>/dev/null | awk '$1=="port"{print $2; exit}') || true
+    [[ "$p" =~ ^[0-9]+$ ]] || p=$(awk '{print $4}' <<< "${SSH_CONNECTION:-}")
+    [[ "$p" =~ ^[0-9]+$ ]] || p=22
+    echo "$p"
+}
+export SSH_PORT="${SSH_PORT:-$(detect_ssh_port)}"
 # Port hopping для Hysteria2: клиент прыгает по диапазону UDP-портов, а на сервере
 # весь диапазон редиректится (NAT REDIRECT) на реальный порт HY2_PORT. Помогает
 # против блокировок по одному UDP-порту и троттлинга QUIC.
@@ -510,7 +521,7 @@ fi
 [[ "$CLIENT_TROJAN_PASS" =~ ^[A-Za-z0-9._@=-]+$ ]] || die "CLIENT_TROJAN_PASS может содержать только латиницу, цифры, точку, подчёркивание, @, = и дефис."
 
 for _port_var in \
-    HY2_PORT VLESS_PORT TROJAN_PORT PANEL_PORT SUB_PORT
+    HY2_PORT VLESS_PORT TROJAN_PORT PANEL_PORT SUB_PORT SSH_PORT
 do
     validate_port "$_port_var" "${!_port_var}"
 done
